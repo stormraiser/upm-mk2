@@ -388,5 +388,5 @@ config = pyglet.gl.Config(double_buffer = 1, sample_buffers = 1, samples = 2, de
 config = screen.get_best_config(config)
 window = PuzzleWindow(width = window_w, height = window_h, config = config)
 
-pyglet.clock.schedule_interval(window.update, 1 / 15)
+pyglet.clock.schedule_interval(window.update, 1 / 60)
 pyglet.app.run()
