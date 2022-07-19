@@ -232,6 +232,8 @@ class PuzzleWindow(pyglet.window.Window):
                     ]
                 )
                 vao.render(moderngl.TRIANGLES, instances = len(model.instance_info))
+                vbo_inst.release()
+                vao.release()
 
         r, g, b = self.picker_buffer.read(viewport = (x, y, 1, 1))
         r = math.floor(r / 255 * m)
@@ -378,11 +380,13 @@ class PuzzleWindow(pyglet.window.Window):
                     ]
                 )
                 vao.render(moderngl.TRIANGLES, instances = len(model.instance_info))
+                vbo_inst.release()
+                vao.release()
 
 screen = pyglet.canvas.get_display().get_default_screen()
-config = pyglet.gl.Config(double_buffer = 1, sample_buffers = 1, samples = 4, depth_size = 24)
+config = pyglet.gl.Config(double_buffer = 1, sample_buffers = 1, samples = 2, depth_size = 24)
 config = screen.get_best_config(config)
 window = PuzzleWindow(width = window_w, height = window_h, config = config)
 
-pyglet.clock.schedule_interval(window.update, 1 / 30)
+pyglet.clock.schedule_interval(window.update, 1 / 15)
 pyglet.app.run()

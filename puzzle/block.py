@@ -45,6 +45,7 @@ class BlockHandle:
 	def add_parts(self, *arg_lists):
 		for arg_list in arg_lists:
 			self.add_part(*arg_list)
+		return self
 
 	def add_selector(self, model_path, name = '', transform = None):
 		transform = Transform() if transform is None else transform.transforms[0]
@@ -57,6 +58,7 @@ class BlockHandle:
 				self.add_selector(arg_list)
 			else:
 				self.add_selector(*arg_list)
+		return self
 
 	def start_from(self, position_name):
 		self.puzzle.block_start_from(self.name, position_name)
