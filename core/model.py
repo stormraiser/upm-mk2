@@ -5,7 +5,7 @@ import trimesh
 class Model:
 
 	def __init__(self, model_path):
-		mesh = trimesh.load(model_path)
+		mesh = trimesh.load(str(model_path))
 		nf = mesh.faces.shape[0]
 		self.vpos = np.array(mesh.vertices[mesh.faces.reshape(nf * 3)], dtype = np.float32)
 		self.vnormal = np.array(mesh.face_normals.repeat(3, 0), dtype = np.float32)
@@ -13,7 +13,7 @@ class Model:
 class PuzzleModelMixin:
 
 	def get_model(self, path):
-		path = os.path.join(self.root, path)
+		path = str((self.puzzle_dir / path).resolve())
 		if path in self.models:
 			return self.models[path]
 		else:
