@@ -65,3 +65,16 @@ class PuzzleRuntimeMixin:
 			for move in op.moves:
 				for pos_id, _ in move.pos_perm:
 					self.block_list[self.state[pos_id]].highlight = True
+
+	def get_drag_matching_path(self, block_id, drag_point, mod_id, num_segments = 20):
+		pos_id = self.block_list[block_id].position
+		valid_ops = []
+		for op_id, move_id in self.op_by_pos[pos_id]:
+			if self.op_list[op_id].valid and self.op_list[op_id].drag_modifier == mod_id:
+				valid_ops.append((op_id, move_id))
+		output_paths = []
+		for op_id, move_id in valid_ops:
+			transform = self.op_list[op_id].moves[move_id].transform
+			path = np.stack([transform.mat_t(t) @ drag_point for t in np.linspace(0, 1, num_segments + 1)], 0)
+			output_paths.append((op_id, path))
+		return output_paths

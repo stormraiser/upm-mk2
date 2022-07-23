@@ -29,6 +29,7 @@ class Operation:
 		self.name = name
 		self.moves = []
 		self.cmd = name
+		self.drag_modifier = None
 
 	def add_move(self, move):
 		for move0 in self.moves:
@@ -82,7 +83,7 @@ class OperationHandle:
 		return self
 
 	def drag(self, modifier = ''):
-		self.puzzle.op_drag(self.name, modifier)
+		self.puzzle.op_set_drag(self.name, modifier)
 		return self
 
 	def set_cmd(self, cmd):
@@ -108,8 +109,8 @@ class PuzzleOperationMixin:
 		else:
 			self.selector_map[selector] = [op_name]
 
-	def add_drag(self, modifier, op_name):
-		self.drag_ops[modifier].append(op_name)
+	def set_drag(self, op_name, modifier):
+		self.get_op(op_name).drag_modifier = modifier
 
 	def op_add_move(self, op_name, moves):
 		arg_lists = self.sym_stack[-1].transform([op_name, moves])
@@ -125,7 +126,7 @@ class PuzzleOperationMixin:
 			for selector in arg_list[1]:
 				self.add_click(get_std_selector_string(selector), op_name)
 
-	def op_drag(self, op_name, modifier):
+	def op_set_drag(self, op_name, modifier):
 		modifier = ''.join([
 			's' if 's' in modifier else '',
 			'c' if 'c' in modifier else '',
@@ -133,9 +134,7 @@ class PuzzleOperationMixin:
 		])
 		arg_lists = self.sym_stack[-1].transform([op_name, modifier])
 		for arg_list in arg_lists:
-			op_name = arg_list[0]
-			for selector in arg_list[1]:
-				self.add_drag(modifier, op_name)
+			self.set_drag(arg_list[0], arg_list[1])
 
 	def op_set_cmd(self, op_name, cmd):
 		arg_lists = self.sym_stack[-1].transform([op_name, cmd])

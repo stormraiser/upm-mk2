@@ -48,14 +48,12 @@ class Puzzle(
 		self.pos_colocate_sets = []
 		self.colors = {}
 		self.puzzle_dir = puzzle_path.parent
-		self.drag_ops = {}
 
 		modifiers = ['']
 		for s in ['a', 'c', 's', 'r']:
 			modifiers = modifiers + [s + t for t in modifiers]
-		for modifier in modifiers[:8]:
-			self.drag_ops[modifier] = []
 		self.modifier_to_id = {name: k for k, name in enumerate(modifiers)}
+		self.modifiers = modifiers
 
 		self.load_puzzle(puzzle_path, lib_dir)
 		self.postprocess()

@@ -10,10 +10,17 @@ class PuzzlePostprocessMixin:
 		g = g * m // 255
 		b = b * m // 255
 		k = r * m * m + g * m + b
-		if k == 0 or k >= self.total_instances + 1:
-			return -1
+		if selector:
+			k = k - self.total_parts - 1
+			if k < 0 or k >= self.total_selectors:
+				return -1
+			else:
+				return k
 		else:
-			return k - 1 - (self.total_parts if selector else 0)
+			if k == 0 or k >= self.total_parts + 1:
+				return -1
+			else:
+				return k - 1
 
 	def postprocess(self):
 		model_list = sorted(self.models.items())
@@ -75,6 +82,7 @@ class PuzzlePostprocessMixin:
 		for model in self.model_list:
 			model.part_instances = []
 			model.selector_instances = []
+		self.part_id_to_block_id = []
 
 		for i, block in enumerate(self.block_list):
 			block.part_list = [None] * self.num_part_names
@@ -84,6 +92,7 @@ class PuzzlePostprocessMixin:
 				block.part_list[k] = (model_id, color, mat, instance_id_to_pick_color(total_part_id))
 				total_part_id += 1
 				self.model_list[model_id].part_instances.append((i, k))
+				self.part_id_to_block_id.append(i)
 			del block.parts
 
 			block.selector_list = [None] * self.num_selector_names
@@ -96,11 +105,14 @@ class PuzzlePostprocessMixin:
 				self.model_list[model_id].selector_instances.append((i, k))
 			del block.selectors
 
-		for op in self.op_list:
+		self.op_by_pos = [[] for k in range(len(self.pos_list))]
+		for k, op in enumerate(self.op_list):
 			op.click_list = []
 			op.valid = True
-			for move in op.moves:
+			for j, move in enumerate(op.moves):
 				move.pos_perm = [(self.pos_name_to_id[key], self.pos_name_to_id[value]) for key, value in move.pos_perm.items()]
+				for p, _ in move.pos_perm:
+					self.op_by_pos[p].append((k, j))
 
 		for selector, op_name_list in self.selector_map.items():
 			sel_string, modifier = selector.split('&')
@@ -112,3 +124,11 @@ class PuzzlePostprocessMixin:
 				op_id = self.op_name_to_id[op_name]
 				self.op_list[op_id].click_list.append((pos_id, sel_id, mod_id))
 		self.current_click_map = np.zeros((self.total_selectors, 16), dtype = np.int32)
+
+		self.drag_list = [[] for k in range(8)]
+		for k, op in enumerate(self.op_list):
+			if op.drag_modifier is not None:
+				op.drag_modifier = self.modifier_to_id[op.drag_modifier]
+				self.drag_list[op.drag_modifier].append(k)
+			else:
+				op.drag_modifier = -1

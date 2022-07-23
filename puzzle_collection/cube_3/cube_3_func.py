@@ -36,8 +36,8 @@ def make_cube_blank():
 		op("R").add_moves(x("R/FU", "UR", "URF")).click("R/FU", "FUR.0").drag()
 		op("R'").add_moves(op("R").inverse()).click("R/FU&r", "URF.1").drag()
 		op("mR").add_moves(x("U/RF", "UF")).click("FU.0", "FU.1").drag()
-		op("2R").add_moves(op("R"), op("mR")).click("R/FU&s", "FUR.0&s", "FU.1&s").drag("s")
-		op("2R'").add_moves(op("2R").inverse()).click("URF.1&s", "R/FU&sr", "UF.0&s").drag("s")
+		op("2R").add_moves(op("R"), op("mR")).click("R/FU&s", "FUR.0&s", "FU.1&s")
+		op("2R'").add_moves(op("2R").inverse()).click("URF.1&s", "R/FU&sr", "UF.0&s")
 		op_fR = op("fR").add_moves(op("R"), op("mR"), op("L'"))
 		op_fR.click("R/FU&c", "FUR.0&c", "FU.0&c", "FU.1&c", "FLU.1&c", "L/BU&cr").drag("c")
 
