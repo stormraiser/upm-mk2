@@ -5,6 +5,9 @@ import collections
 from .utils import *
 from .move import Move
 
+teq_eps = 1e-3
+req_eps = 0.1 / 180 * math.pi
+
 def translation_mat(v, t = 1):
 	return np.array([
 		[1, 0, 0, v[0] * t],
@@ -74,6 +77,10 @@ class Translation(Transform):
 	def __repr__(self):
 		return 'translation({0:.3f}, {1:.3f}, {2:.3f})'.format(self.v[0], self.v[1], self.v[2])
 
+	def __eq__(self, other):
+		d = np.linalg.norm(self.v - other.v)
+		return d <= teq_eps
+
 class Rotation(Transform):
 
 	def __init__(self, angle, v, p):
@@ -95,6 +102,19 @@ class Rotation(Transform):
 
 	def __repr__(self):
 		return 'rotation({0:.3f}, {1:.3f}, {2:.3f}, {3:.3f}, {4:.3f}, {5:.3f}, {6:.3f})'.format(self.angle, self.v[0], self.v[1], self.v[2], self.p[0], self.p[1], self.p[2])
+
+	def __eq__(self, other):
+		d = np.linalg.norm(self.p - other.p)
+		if d > teq_eps:
+			return False
+		r1 = math.acos(min(1, max(-1, np.dot(self.v, other.v))))
+		r2 = self.angle - other.angle
+		if r1 <= req_eps:
+			return abs(r2) <= req_eps or abs(r2 - math.pi * 2) <= req_eps or abs(r2 + math.pi * 2) <= req_eps
+		elif r1 >= math.pi - req_eps:
+			return abs(r2 - math.pi) <= req_eps or abs(r2 + math.pi) <= req_eps
+		else:
+			return False
 
 class TagPerm(Transform):
 
@@ -190,6 +210,9 @@ class TransformSequence(TransformSet):
 		pos_perm = dict(zip(all_pos, target))
 		return Move(geom_tr, pos_perm)
 
+	def __eq__(self, other):
+		return self.seq == other.seq
+
 class PuzzleTransformMixin:
 
 	def push_sym(self, tr_set):
@@ -203,7 +226,7 @@ class PuzzleTransformMixin:
 
 	def rotate(self, angle_deg, x, y, z, x0 = 0, y0 = 0, z0 = 0):
 		return TransformSequence(self, [Rotation(
-			angle_deg / 180 * math.pi,
+			(angle_deg - (angle_deg + 180) // 360 * 360) / 180 * math.pi,
 			np.array([x, y, z, 0], dtype = np.float32),
 			np.array([x0, y0, z0, 1], dtype = np.float32)
 		)])

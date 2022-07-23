@@ -31,13 +31,20 @@ class Operation:
 		self.cmd = name
 
 	def add_move(self, move):
-		for key in list(move.pos_perm):
-			for move0 in self.moves:
-				if key in move0.pos_perm:
-					del move.pos_perm[key]
-					break
-		if len(move.pos_perm) > 0:
-			self.moves.append(move)
+		for move0 in self.moves:
+			if move.transform == move0.transform:
+				for key, value in move.pos_perm.items():
+					if key in move0.pos_perm:
+						if move0.pos_perm[key] != value:
+							raise RuntimeError('Conflicting moves')
+					else:
+						move0.pos_perm[key] = value
+				return
+			else:
+				for key in move.pos_perm:
+					if key in move0.pos_perm:
+						raise RuntimeError('Conflicting moves')
+		self.moves.append(move)
 
 	def set_cmd(self, cmd):
 		self.cmd = cmd
@@ -54,10 +61,10 @@ class OperationHandle:
 	def inverse(self):
 		return self.puzzle.get_op(self.name).inverse()
 
-	def add_moves(self, *args):
+	def add_moves(self, *args, cycle = True):
 		if len(args) == 0:
 			return self
-		if isinstance(args[0], Transform):
+		if isinstance(args[0], TransformSequence):
 			raise NotImplementedError
 		moves = []
 		for arg in args:
@@ -70,8 +77,12 @@ class OperationHandle:
 		self.puzzle.op_add_move(self.name, moves)
 		return self
 
-	def add_selectors(self, *selectors):
-		self.puzzle.op_add_selectors(self.name, selectors)
+	def click(self, *selectors):
+		self.puzzle.op_click(self.name, selectors)
+		return self
+
+	def drag(self, modifier = ''):
+		self.puzzle.op_drag(self.name, modifier)
 		return self
 
 	def set_cmd(self, cmd):
@@ -91,11 +102,14 @@ class PuzzleOperationMixin:
 			self.operations[name] = new_op
 			return new_op
 
-	def add_selector(self, selector, op_name):
-		if selector in self.selectors:
-			if self.selectors[selector] != op_name:
-				raise RuntimeError('Different operations cannot have the same selector')
-		self.selectors[selector] = op_name
+	def add_click(self, selector, op_name):
+		if selector in self.selector_map:
+			self.selector_map[selector].append(op_name)
+		else:
+			self.selector_map[selector] = [op_name]
+
+	def add_drag(self, modifier, op_name):
+		self.drag_ops[modifier].append(op_name)
 
 	def op_add_move(self, op_name, moves):
 		arg_lists = self.sym_stack[-1].transform([op_name, moves])
@@ -104,12 +118,24 @@ class PuzzleOperationMixin:
 			for move in arg_list[1]:
 				op.add_move(move)
 
-	def op_add_selectors(self, op_name, selectors):
+	def op_click(self, op_name, selectors):
 		arg_lists = self.sym_stack[-1].transform([op_name, selectors])
 		for arg_list in arg_lists:
 			op_name = arg_list[0]
 			for selector in arg_list[1]:
-				self.add_selector(get_std_selector_string(selector), op_name)
+				self.add_click(get_std_selector_string(selector), op_name)
+
+	def op_drag(self, op_name, modifier):
+		modifier = ''.join([
+			's' if 's' in modifier else '',
+			'c' if 'c' in modifier else '',
+			'a' if 'a' in modifier else ''
+		])
+		arg_lists = self.sym_stack[-1].transform([op_name, modifier])
+		for arg_list in arg_lists:
+			op_name = arg_list[0]
+			for selector in arg_list[1]:
+				self.add_drag(modifier, op_name)
 
 	def op_set_cmd(self, op_name, cmd):
 		arg_lists = self.sym_stack[-1].transform([op_name, cmd])

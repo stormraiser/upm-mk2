@@ -124,4 +124,4 @@ class PuzzleBlockMixin:
 		arg_lists = self.sym_stack[-1].transform([block_names, model_path, color, transform, name])
 		merged_arg_lists = merge_name_sets(arg_lists)
 		for arg_list in merged_arg_lists:
-			self.get_block(arg_list[0][0]).add_part(*arg_list[1:])
+			self.get_block(min(arg_list[0])).add_part(*arg_list[1:])

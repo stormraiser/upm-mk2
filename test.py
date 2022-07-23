@@ -50,7 +50,7 @@ void main() {
 	vec3 d_n = d / sqrt(sqdis);
 	float t = max(dot(d_n, vnormal), 0);
 	t = (t + pow(t, 10) * vcolor[3]) / sqdis;
-	out_fcolor = vec3(vcolor) * (t * 200000 + 0.25);
+	out_fcolor = vec3(vcolor) * (t * 250000 + 0.25);
 	//out_fcolor = vec3(1, 1, 0);
 }
 '''
@@ -119,19 +119,10 @@ class PuzzleWindow(pyglet.window.Window):
 			fragment_shader = picker_fragment_shader_code
 		)
 
+		self.puzzle.init_vbo(self.ctx)
+
 		self.light_pos = np.array([200, 400, 300], dtype = np.float32)
 		self.vbo_light_pos = self.ctx.buffer(self.light_pos.tobytes())
-
-		for model_name, model in self.puzzle.models.items():
-			model.vbo_pos = self.ctx.buffer(model.vpos.tobytes())
-			model.vbo_normal = self.ctx.buffer(model.vnormal.tobytes())
-			model.instance_info = []
-		self.puzzle.selector_list = sorted(list(self.puzzle.selectors.items()))
-		self.puzzle.current_state = {}
-		for block_name, block in self.puzzle.blocks.items():
-			self.puzzle.current_state[block.start_position] = block_name
-			block.current_transform = np.eye(4, dtype = np.float32)
-			block.next_transform = np.eye(4, dtype = np.float32)
 
 		self.time0 = time.time()
 
@@ -142,14 +133,13 @@ class PuzzleWindow(pyglet.window.Window):
 		self.ctrl_down = False
 		self.alt_down = False
 
-		self.lhighlight = None
-		self.rhighlight = None
+		self.lhighlight = -1
+		self.rhighlight = -1
 		self.last_mouse_x = 0
 		self.last_mouse_y = 0
 		self.mouse_move_after_down = False
 
 		self.animating = False
-		self.animation_op = None
 		self.animation_start = 0
 
 	def pixel_to_trackball(self, px, py):
@@ -165,60 +155,28 @@ class PuzzleWindow(pyglet.window.Window):
 			current_time = time.time()
 			if current_time - self.animation_start >= animation_time:
 				self.animating = False
-				self.update_state()
+				self.puzzle.finish_op()
 				self.update_active_selector(self.last_mouse_x, self.last_mouse_y)
 			else:
-				self.update_state(t = (current_time - self.animation_start) / animation_time)
+				self.puzzle.animate(t = (current_time - self.animation_start) / animation_time)
 
 	def update_active_selector(self, x, y):
 		if self.animating:
 			return
-		active_selectors = {}
-		active_possel = set()
-		for selector, op_name in self.puzzle.selector_list:
-			pos_and_sel, modifier = selector.split('&')
-			pos_name, sel_name = pos_and_sel.split('.')
-			if (('s' in modifier) == self.shift_down) and (('c' in modifier) == self.ctrl_down) and (('a' in modifier) == self.alt_down):
-				block = self.puzzle.get_block(self.puzzle.current_state[pos_name])
-				model, mat = block.selectors[sel_name]
-				mat = block.current_transform @ mat
-				active_selectors[(pos_and_sel, 'r' in modifier)] = (model, mat, op_name)
-				active_possel.add(pos_and_sel)
-		merged_selectors = []
-		for possel in active_possel:
-			if (possel, True) in active_selectors:
-				model, mat, rop_name = active_selectors[(possel, True)]
-				if (possel, False) in active_selectors:
-					lop_name = active_selectors[(possel, False)][2]
-				else:
-					lop_name = None
-				merged_selectors.append((model, mat, lop_name, rop_name))
-			else:
-				if (possel, False) in active_selectors:
-					model, mat, lop_name = active_selectors[(possel, False)]
-					merged_selectors.append((model, mat, lop_name, None))
-		#
-		n = len(merged_selectors)
-		m = math.ceil((n + 2) ** (1 / 3))
-		for model_name, model in self.puzzle.models.items():
-			model.instance_info = []
-		for k in range(n):
-			r = ((k + 1) // m // m + 0.5) / m
-			g = ((k + 1) // m % m + 0.5) / m
-			b = ((k + 1) % m + 0.5) / m
-			color = np.array([r, g, b], dtype = np.float32)
-			merged_selectors[k][0].instance_info.append((color, merged_selectors[k][1]))
 
 		self.picker_buffer.use()
 		self.ctx.clear(0, 0, 0)
 		self.picker_buffer.scissor = (x, y, 1, 1)
 
-		for model_name, model in self.puzzle.models.items():
-			if len(model.instance_info) > 0:
+		for model in self.puzzle.model_list:
+			if len(model.selector_instances) > 0:
 				all_inst_data = []
-				for inst in model.instance_info:
-					mvp = self.proj_mat @ self.view_mat @ self.mmat_t @ inst[1]
-					inst_data = np.concatenate((inst[0], mvp.transpose().reshape(16)), 0)
+				for block_id, selector_id in model.selector_instances:
+					block = self.puzzle.block_list[block_id]
+					selector = block.selector_list[selector_id]
+					color = np.array(selector[3], dtype = np.float32)
+					mvp = self.proj_mat @ self.view_mat @ self.mmat_t @ block.next_transform @ selector[1]
+					inst_data = np.concatenate((color, mvp.transpose().reshape(16)), 0)
 					all_inst_data.append(inst_data)
 				vbo_inst = self.ctx.buffer(np.stack(all_inst_data, 0).tobytes())
 				vao = self.ctx.vertex_array(
@@ -228,27 +186,19 @@ class PuzzleWindow(pyglet.window.Window):
 						(vbo_inst, "3f 16f /i", "in_vcolor", "mvp")
 					]
 				)
-				vao.render(moderngl.TRIANGLES, instances = len(model.instance_info))
+				vao.render(moderngl.TRIANGLES, instances = len(model.selector_instances))
 				vbo_inst.release()
 				vao.release()
 
 		r, g, b = self.picker_buffer.read(viewport = (x, y, 1, 1))
-		r = math.floor(r / 255 * m)
-		g = math.floor(g / 255 * m)
-		b = math.floor(b / 255 * m)
-		k = r * m * m + g * m + b
-		if k == 0 or k >= n + 1:
-			k = -1
+		picked_selector = self.puzzle.pick_color_to_instance_id(r, g, b, selector = True)
+		if picked_selector >= 0:
+			modifier = (4 if self.shift_down else 0) + (2 if self.ctrl_down else 0) + (1 if self.alt_down else 0)
+			self.lhighlight = self.puzzle.current_click_map[picked_selector, modifier]
+			self.rhighlight = self.puzzle.current_click_map[picked_selector, modifier + 8]
 		else:
-			k -= 1
-
-		if k >= 0:
-			self.lhighlight = merged_selectors[k][2]
-			self.rhighlight = merged_selectors[k][3]
-		else:
-			self.lhighlight = None
-			self.rhighlight = None
-		#print(self.lhighlight or '*', self.rhighlight or '*')
+			self.lhighlight = -1
+			self.rhighlight = -1
 
 	def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
 		self.last_mouse_x = x
@@ -306,65 +256,40 @@ class PuzzleWindow(pyglet.window.Window):
 		if self.animating:
 			return
 		if button & pyglet.window.mouse.LEFT:
-			op = self.lhighlight
+			op_id = self.lhighlight
 		elif button & pyglet.window.mouse.RIGHT:
-			op = self.rhighlight
-		if op is None:
+			op_id = self.rhighlight
+		if op_id == -1:
 			return
-		self.animation_op = op
+		self.puzzle.start_op(op_id)
 		self.animating = True
 		self.animation_start = time.time()
-
-	def update_state(self, t = 1):
-		op = self.puzzle.get_op(self.animation_op)
-		new_state = {}
-		for move in op.moves:
-			mat = move.transform.mat_t(t)
-			for pos, new_pos in move.pos_perm.items():
-				block_name = self.puzzle.current_state[pos]
-				block = self.puzzle.get_block(block_name)
-				block.next_transform = mat @ block.current_transform
-				if not self.animating:
-					block.current_transform = block.next_transform
-					new_state[new_pos] = block_name
-		if not self.animating:
-			self.puzzle.current_state.update(new_state)
 
 	def on_draw(self):
 		self.ctx.screen.use()
 		self.ctx.clear(0.7, 0.7, 0.7)
 
-		for block_name, block in self.puzzle.blocks.items():
-			block.highlight = False
-		ops = []
-		if self.lhighlight is not None:
-			ops.append(self.puzzle.get_op(self.lhighlight))
-		if self.rhighlight is not None:
-			ops.append(self.puzzle.get_op(self.rhighlight))
-		for op in ops:
-			for move in op.moves:
-				for pos in move.pos_perm:
-					self.puzzle.get_block(self.puzzle.current_state[pos]).highlight = True
+		highlight_ops = []
+		if self.lhighlight >= 0:
+			highlight_ops.append(self.lhighlight)
+		if self.rhighlight >= 0:
+			highlight_ops.append(self.rhighlight)
+		self.puzzle.set_highlight(highlight_ops)
 
-		for model_name, model in self.puzzle.models.items():
-			model.instance_info = []
-
-		for block_name, block in self.puzzle.blocks.items():
-			for part_name, part_info in block.parts.items():
-				model, color, model_mat = part_info
-				model_mat = self.mmat_t @ block.next_transform @ model_mat
-				color = np.array(self.puzzle.colors[color], dtype = np.float32)
-				if block.highlight:
-					#color = color * 0.7 + 0.3
-					color = color * 0.85 + 0.25
-				mvp = self.proj_mat @ self.view_mat @ model_mat
-				model.instance_info.append((color, model_mat, mvp))
-
-		for model_name, model in self.puzzle.models.items():
-			if len(model.instance_info) > 0:
+		for model in self.puzzle.model_list:
+			if len(model.part_instances) > 0:
 				all_inst_data = []
-				for inst in model.instance_info:
-					inst_data = np.concatenate((inst[0], inst[1].transpose().reshape(16), inst[2].transpose().reshape(16)), 0)
+				for block_id, part_id in model.part_instances:
+					block = self.puzzle.block_list[block_id]
+					part = block.part_list[part_id]
+					color = part[1]
+					if isinstance(color, str):
+						color = np.array(self.puzzle.colors[color], dtype = np.float32)
+					if block.highlight:
+						color = np.concatenate((color[:3] * 0.85 + 0.25, color[3:]), 0)
+					model_mat = self.mmat_t @ block.next_transform @ part[2]
+					mvp = self.proj_mat @ self.view_mat @ model_mat
+					inst_data = np.concatenate((color, model_mat.transpose().reshape(16), mvp.transpose().reshape(16)), 0)
 					all_inst_data.append(inst_data)
 				vbo_inst = self.ctx.buffer(np.stack(all_inst_data, 0).tobytes())
 				vao = self.ctx.vertex_array(
@@ -376,7 +301,7 @@ class PuzzleWindow(pyglet.window.Window):
 						(self.vbo_light_pos, "3f /r", "in_light_pos")
 					]
 				)
-				vao.render(moderngl.TRIANGLES, instances = len(model.instance_info))
+				vao.render(moderngl.TRIANGLES, instances = len(model.part_instances))
 				vbo_inst.release()
 				vao.release()
 

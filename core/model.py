@@ -4,8 +4,9 @@ import trimesh
 
 class Model:
 
-	def __init__(self, model_path):
-		mesh = trimesh.load(str(model_path))
+	def __init__(self, path):
+		self.path = path
+		mesh = trimesh.load(str(path))
 		nf = mesh.faces.shape[0]
 		self.vpos = np.array(mesh.vertices[mesh.faces.reshape(nf * 3)], dtype = np.float32)
 		self.vnormal = np.array(mesh.face_normals.repeat(3, 0), dtype = np.float32)
