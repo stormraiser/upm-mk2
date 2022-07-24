@@ -34,10 +34,11 @@ class PuzzleRuntimeMixin:
 							raise RuntimeError('Multiple operations with the same selector active simultaneously')
 						self.current_click_map[total_selector_id, mod_id] = op_id
 
-	def init_vbo(self, ctx):
+	def init_gl(self, ctx):
 		for model in self.model_list:
-			model.vbo_pos = ctx.buffer(model.vpos.tobytes())
-			model.vbo_normal = ctx.buffer(model.vnormal.tobytes())
+			model.init_gl(ctx)
+		for texture in self.texture_list:
+			texture.init_gl(ctx)
 
 	def start_op(self, op_id):
 		self.current_op = self.op_list[op_id]

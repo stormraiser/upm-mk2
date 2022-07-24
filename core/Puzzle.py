@@ -6,6 +6,7 @@ from .model import PuzzleModelMixin
 from .operation import PuzzleOperationMixin
 from .postprocess import PuzzlePostprocessMixin
 from .runtime import PuzzleRuntimeMixin
+from .texture import PuzzleTextureMixin
 
 export_names = [
 	'translate',
@@ -15,7 +16,8 @@ export_names = [
 	'block',
 	'merge',
 	'color',
-	'op'
+	'op',
+	'texture'
 ]
 
 class SourceFileLoaderWithExtraGlobals(importlib.machinery.SourceFileLoader):
@@ -34,19 +36,21 @@ class Puzzle(
 	PuzzleModelMixin,
 	PuzzleOperationMixin,
 	PuzzlePostprocessMixin,
-	PuzzleRuntimeMixin
+	PuzzleRuntimeMixin,
+	PuzzleTextureMixin
 ):
 
 	def __init__(self, puzzle_path, lib_dir):
 		self.tags = set()
 		self.sym_stack = [TransformSet(self, [Transform()])]
 		self.models = {}
+		self.textures = {}
 		self.blocks = {}
 		self.operations = {}
 		self.selector_map = {}
 		self.block_merge_sets = []
 		self.pos_colocate_sets = []
-		self.colors = {}
+		self.clr_tex_map = {}
 		self.puzzle_dir = puzzle_path.parent
 
 		modifiers = ['']
@@ -60,7 +64,7 @@ class Puzzle(
 		self.reset()
 
 	def color(self, name, r, g, b, specular = 0):
-		self.colors[name] = (r, g, b, specular)
+		self.clr_tex_map[name] = (False, r, g, b, specular)
 
 	def load_puzzle(self, puzzle_path, lib_dir):
 		export_dict = {}

@@ -28,6 +28,11 @@ class PuzzlePostprocessMixin:
 		self.model_path_to_id = {model_list[k][0]: k for k in range(len(model_list))}
 		del self.models
 
+		texture_list = sorted(self.textures.items())
+		self.texture_list = [t[1] for t in texture_list]
+		self.texture_path_to_id = {texture_list[k][0]: k for k in range(len(texture_list))}
+		del self.textures
+
 		block_list = sorted(self.blocks.items())
 		self.block_list = [t[1] for t in block_list]
 		self.block_name_to_id = {block_list[k][0]: k for k in range(len(block_list))}
@@ -82,6 +87,7 @@ class PuzzlePostprocessMixin:
 		total_selector_id = 0
 		for model in self.model_list:
 			model.part_instances = []
+			model.tex_instances = [[] for i in range(len(self.texture_list))]
 			model.selector_instances = []
 		self.part_id_to_block_id = []
 
@@ -92,7 +98,11 @@ class PuzzlePostprocessMixin:
 				k = self.part_name_to_id[part_name]
 				block.part_list[k] = (model_id, color, mat, instance_id_to_pick_color(total_part_id))
 				total_part_id += 1
-				self.model_list[model_id].part_instances.append((i, k))
+				if isinstance(color, str) and self.clr_tex_map[color][0]:
+					tex_id = self.texture_path_to_id[self.clr_tex_map[color][1]]
+					self.model_list[model_id].tex_instances[tex_id].append((i, k))
+				else:
+					self.model_list[model_id].part_instances.append((i, k))
 				self.part_id_to_block_id.append(i)
 			del block.parts
 
@@ -101,7 +111,6 @@ class PuzzlePostprocessMixin:
 				model_id = self.model_path_to_id[model.path]
 				k = self.selector_name_to_id[selector_name]
 				block.selector_list[k] = (model_id, mat, total_selector_id, instance_id_to_pick_color(total_selector_id + self.total_parts))
-				#print(total_selector_id, instance_id_to_pick_color(self.total_parts + total_selector_id))
 				total_selector_id += 1
 				self.model_list[model_id].selector_instances.append((i, k))
 			del block.selectors

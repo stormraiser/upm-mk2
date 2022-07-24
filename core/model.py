@@ -11,6 +11,10 @@ class Model:
 		self.vpos = np.array(mesh.vertices[mesh.faces.reshape(nf * 3)], dtype = np.float32)
 		self.vnormal = np.array(mesh.face_normals.repeat(3, 0), dtype = np.float32)
 
+	def init_gl(self, ctx):
+		self.vbo_pos = ctx.buffer(self.vpos.tobytes())
+		self.vbo_normal = ctx.buffer(self.vnormal.tobytes())
+
 class PuzzleModelMixin:
 
 	def get_model(self, path):

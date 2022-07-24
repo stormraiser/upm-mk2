@@ -25,26 +25,44 @@ with group(x, y):
 	block("URF").add_part(mf_corner, "U")
 
 	forbid_list = [
-		"RF:X+3", "UF:M+2", "UR1F1:M+2", "BR1U1:N+4", "UF1L1:M+1",
-		"ULB:K+2", "LBU:K+2", "BUL:K+2", "UL1B1:K+2",
-		"LUF:M+2", "UFL:M+2", "FLU:M+2", "LB1U1:K+3"
+		"RF:X+14", "UF:M+9",
+		"UR1F1:M+9", "BR1U1:N+18", "UF1L1:M+5",
+		"URF:M+5", "RFU:M+5", "FUR:M+5",
+		"RDF:X+18", "DFR:X+18", "FRD:X+18",
+		"ULB:K+5", "LBU:K+5", "BUL:K+5", "UL1B1:K+5",
+		"ULB:K+9", "LBU:K+9", "BUL:K+9", "UL1B1:K+9",
+		"LUF:M+9", "UFL:M+9", "FLU:M+9", "LB1U1:K+14",
+		"ULB:K+18", "LBU:K+18", "BUL:K+18", "UL1B1:K+18"
 	]
-	op("H+2").add_moves(rotate(-70.528779, 1, 1, 0),
-		["RU:H+3", "UR", "UR:H+2"],
-		["RUB:H+1", "FUR:X+2", "URF", "URF:H+2", "URF:H+4"],
-		["UBR:H+1", "URF:X+2", "RFU", "RFU:H+2", "RFU:H+4"],
-		["BRU:H+1", "RFU:X+2", "FUR", "FUR:H+2", "FUR:H+4"],
-		["RU1B1:H+1", "FU1R1:X+2", "UR1F1", "UR1F1:H+2", "UR1F1:H+4"],
-		["UB1R1:H+1", "UB1R1:H+3", "RF1U1", "RF1U1:H+2", "RF1U1:H+4"]
-	).forbid(forbid_list).click("RU:H+3", "UR").drag()
-	op("H-2").add_moves(op("H+2").inverse()).forbid(forbid_list).click("UR&r", "UR:H+2&r").drag()
-	op("H+1").add_moves(rotate(-38.942441, 1, 1, 0),
-		["UR:H+2", "UR:H+3"],
-		["URF:H+4", "RUB", "RUB:H+1"],
-		["RFU:H+4", "UBR", "UBR:H+1"],
-		["FUR:H+4", "BRU", "BRU:H+1"],
-		["URF:H+2", "BRU:N+2"], ["RFU:H+2", "RUB:N+2"], ["FUR:H+2", "UBR:N+2"],
-		["RU1B1:H+4", "UR1F1", "UR1F1:H+1"], ["UB1R1:H+4", "RF1U1", "RF1U1:H+1"],
-		["UR1F1:H+2", "BR1U1:N+2"], ["RF1U1:H+2", "RF1U1:H+3"]
-	).forbid(forbid_list + ["UR"]).click("UR:H+2").drag()
-	op("H-1").add_moves(op("H+1").inverse()).forbid(forbid_list + ["UR"]).click("UR:H+3&r").drag()
+	op("H+9").add_moves(rotate(-70.528779, 1, 1, 0),
+		["RU:H+14", "UR", "UR:H+9"],
+		["RUB:H+5", "FUR:X+9", "URF", "URF:H+9", "URF:H+18"],
+		["UBR:H+5", "URF:X+9", "RFU", "RFU:H+9", "RFU:H+18"],
+		["BRU:H+5", "RFU:X+9", "FUR", "FUR:H+9", "FUR:H+18"],
+		["RU1B1:H+5", "FU1R1:X+9", "UR1F1", "UR1F1:H+9", "UR1F1:H+18"],
+		["UB1R1:H+5", "UB1R1:H+14", "RF1U1", "RF1U1:H+9", "RF1U1:H+18"]
+	).forbid(forbid_list).click("RU:H+14", "UR").drag()
+	op("H-9").add_moves(op("H+9").inverse()).forbid(forbid_list).click("UR&r", "UR:H+9&r").drag()
+	op("H+5").add_moves(rotate(-38.942441, 1, 1, 0),
+		["UR:H+9", "UR:H+14"],
+		["URF:H+18", "RUB", "RUB:H+5"],
+		["RFU:H+18", "UBR", "UBR:H+5"],
+		["FUR:H+18", "BRU", "BRU:H+5"],
+		["URF:H+9", "BRU:N+9"], ["RFU:H+9", "RUB:N+9"], ["FUR:H+9", "UBR:N+9"],
+		["RU1B1:H+18", "UR1F1", "UR1F1:H+5"], ["UB1R1:H+18", "RF1U1", "RF1U1:H+5"],
+		["UR1F1:H+9", "BR1U1:N+9"], ["RF1U1:H+9", "RF1U1:H+14"]
+	).forbid(forbid_list + ["UR"]).click("UR:H+9").drag()
+	op("H-5").add_moves(op("H+5").inverse()).forbid(forbid_list + ["UR"]).click("UR:H+14&r").drag()
+	op("H+23").add_moves(rotate(-180, 1, 1, 0),
+		("UR", "RU"), ("UR:H+9", "RU:H+9"), ("UR:H+14", "RU:H+14"),
+		("URF", "RUB"), ("RFU", "UBR"), ("FUR", "BRU"),
+		("URF:H+5", "RUB:H+5"), ("RFU:H+5", "UBR:H+5"), ("FUR:H+5", "BRU:H+5"),
+		("URF:H+9", "RUB:H+9"), ("RFU:H+9", "UBR:H+9"), ("FUR:H+9", "BRU:H+9"),
+		("URF:H+18", "RUB:H+18"), ("RFU:H+18", "UBR:H+18"), ("FUR:H+18", "BRU:H+18"),
+		("UR1F1", "RU1B1"), ("UR1F1:H+5", "RU1B1:H+5"),
+		("UR1F1:H+9", "RU1B1:H+9"),  ("UR1F1:H+18", "RU1B1:H+18"),
+		("RF1U1", "UB1R1"), ("RF1U1:H+5", "UB1R1:H+5"), ("RF1U1:H+9", "UB1R1:H+9"),
+		("RF1U1:H+14", "UB1R1:H+14"), ("RF1U1:H+18", "UB1R1:H+18")
+	).forbid(forbid_list).click("UR&s", "UR:H+9&s", "UR:H+14&s").drag("s")
+	op("H-23").add_moves(op("H+23").inverse()).forbid(forbid_list)
+	op("H-23").click("UR&rs", "UR:H+9&rs", "UR:H+14&rs").drag("s")

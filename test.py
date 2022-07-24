@@ -29,8 +29,6 @@ void main() {
 	vcolor = in_vcolor;
 	light_pos = in_light_pos;
 	gl_Position = mvp * vec4(in_vpos, 1.0);
-	//gl_Position = in_vpos;
-	//gl_Position = in_vpos;
 }
 '''
 
@@ -50,8 +48,57 @@ void main() {
 	vec3 d_n = d / sqrt(sqdis);
 	float t = max(dot(d_n, vnormal), 0);
 	t = (t + pow(t, 10) * vcolor[3]) / sqdis;
-	out_fcolor = vec3(vcolor) * (t * 250000 + 0.25);
-	//out_fcolor = vec3(1, 1, 0);
+	out_fcolor = vec3(vcolor) * (t * 550000 + 0.2);
+}
+'''
+
+tex_vertex_shader_code = '''
+#version 330
+
+in vec3 in_vpos;
+in vec3 in_vnormal;
+in mat4 mmat;
+in mat4 mvp;
+in mat4 tcmat;
+in vec3 in_light_pos;
+in vec2 in_highlight;
+
+out vec3 vpos;
+out vec3 vnormal;
+out vec3 light_pos;
+out vec2 tex_coord;
+out vec2 highlight;
+
+void main() {
+	vpos = vec3(mmat * vec4(in_vpos, 1.0));
+	vnormal = vec3(mmat * vec4(in_vnormal, 0.0));
+	tex_coord = vec2(tcmat * vec4(in_vpos, 1.0));
+	light_pos = in_light_pos;
+	highlight = in_highlight;
+	gl_Position = mvp * vec4(in_vpos, 1.0);
+}
+'''
+
+tex_fragment_shader_code = '''
+#version 330
+
+in vec3 vpos;
+in vec3 vnormal;
+in vec3 light_pos;
+in vec2 tex_coord;
+in vec2 highlight;
+
+uniform sampler2D tex;
+
+out vec3 out_fcolor;
+
+void main() {
+	vec3 vcolor = vec3(texture(tex, tex_coord)) * highlight[0] + highlight[1];
+	vec3 d = light_pos - vpos;
+	float sqdis = dot(d, d);
+	vec3 d_n = d / sqrt(sqdis);
+	float t = max(dot(d_n, vnormal), 0) / sqdis;
+	out_fcolor = vcolor * (t * 550000 + 0.2);
 }
 '''
 
@@ -106,7 +153,7 @@ class PuzzleWindow(pyglet.window.Window):
 
 		self.near = 100
 		self.far = 400
-		self.view_h = math.tan(30 / 180 * math.pi)
+		self.view_h = math.tan(25 / 180 * math.pi)
 		self.aspect = 4 / 3
 		self.proj_mat = make_proj_mat(math.atan(self.view_h), self.aspect, self.near, self.far)
 
@@ -116,14 +163,18 @@ class PuzzleWindow(pyglet.window.Window):
 			vertex_shader = vertex_shader_code,
 			fragment_shader = fragment_shader_code
 		)
+		self.tex_shader_program = self.ctx.program(
+			vertex_shader = tex_vertex_shader_code,
+			fragment_shader = tex_fragment_shader_code
+		)
 		self.picker_shader_program = self.ctx.program(
 			vertex_shader = picker_vertex_shader_code,
 			fragment_shader = picker_fragment_shader_code
 		)
 
-		self.puzzle.init_vbo(self.ctx)
+		self.puzzle.init_gl(self.ctx)
 
-		self.light_pos = np.array([200, 400, 300], dtype = np.float32)
+		self.light_pos = np.array([300, 600, 450], dtype = np.float32)
 		self.vbo_light_pos = self.ctx.buffer(self.light_pos.tobytes())
 
 		self.time0 = time.time()
@@ -214,9 +265,10 @@ class PuzzleWindow(pyglet.window.Window):
 		self.picker_buffer.scissor = (x, y, 1, 1)
 
 		for model in self.puzzle.model_list:
-			if len(model.part_instances) > 0:
+			part_instances = sum(model.tex_instances, start = model.part_instances)
+			if len(part_instances) > 0:
 				all_inst_data = []
-				for block_id, part_id in model.part_instances:
+				for block_id, part_id in part_instances:
 					block = self.puzzle.block_list[block_id]
 					part = block.part_list[part_id]
 					color = np.array(part[3], dtype = np.float32)
@@ -231,7 +283,7 @@ class PuzzleWindow(pyglet.window.Window):
 						(vbo_inst, "3f 16f /i", "in_vcolor", "mvp")
 					]
 				)
-				vao.render(moderngl.TRIANGLES, instances = len(model.part_instances))
+				vao.render(moderngl.TRIANGLES, instances = len(part_instances))
 				vbo_inst.release()
 				vao.release()
 
@@ -386,7 +438,7 @@ class PuzzleWindow(pyglet.window.Window):
 					part = block.part_list[part_id]
 					color = part[1]
 					if isinstance(color, str):
-						color = np.array(self.puzzle.colors[color], dtype = np.float32)
+						color = np.array(self.puzzle.clr_tex_map[color][1:], dtype = np.float32)
 					if block.highlight:
 						color = np.concatenate((color[:3] * 0.85 + 0.25, color[3:]), 0)
 					model_mat = self.mmat_t @ block.next_transform @ part[2]
@@ -406,6 +458,42 @@ class PuzzleWindow(pyglet.window.Window):
 				vao.render(moderngl.TRIANGLES, instances = len(model.part_instances))
 				vbo_inst.release()
 				vao.release()
+
+			for k, one_tex_instances in enumerate(model.tex_instances):
+				if len(one_tex_instances) > 0:
+					self.puzzle.texture_list[k].gl_tex.use()
+					all_inst_data = []
+					for block_id, part_id in one_tex_instances:
+						block = self.puzzle.block_list[block_id]
+						part = block.part_list[part_id]
+						if block.highlight:
+							highlight = np.array([0.85, 0.25], dtype = np.float32)
+						else:
+							highlight = np.array([1, 0], dtype = np.float32)
+						tcmat = self.puzzle.clr_tex_map[part[1]][2]
+						tcmat = tcmat @ part[2]
+						model_mat = self.mmat_t @ block.next_transform @ part[2]
+						mvp = self.proj_mat @ self.view_mat @ model_mat
+						inst_data = np.concatenate((
+							model_mat.transpose().reshape(16),
+							mvp.transpose().reshape(16),
+							tcmat.transpose().reshape(16),
+							highlight
+						), 0)
+						all_inst_data.append(inst_data)
+					vbo_inst = self.ctx.buffer(np.stack(all_inst_data, 0).tobytes())
+					vao = self.ctx.vertex_array(
+						self.tex_shader_program,
+						[
+							(model.vbo_pos, "3f /v", "in_vpos"),
+							(model.vbo_normal, "3f /v", "in_vnormal"),
+							(vbo_inst, "16f 16f 16f 2f /i", "mmat", "mvp", "tcmat", "in_highlight"),
+							(self.vbo_light_pos, "3f /r", "in_light_pos")
+						]
+					)
+					vao.render(moderngl.TRIANGLES, instances = len(one_tex_instances))
+					vbo_inst.release()
+					vao.release()
 
 screen = pyglet.canvas.get_display().get_default_screen()
 config = pyglet.gl.Config(double_buffer = 1, sample_buffers = 1, samples = 4, depth_size = 24)
