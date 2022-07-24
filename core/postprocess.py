@@ -44,6 +44,7 @@ class PuzzlePostprocessMixin:
 		for op in self.op_list:
 			for move in op.moves:
 				pos_set.update(move.pos_perm.keys())
+				pos_set.update(move.pos_perm.values())
 		self.pos_list = sorted(pos_set)
 		self.pos_name_to_id = {pos: k for k, pos in enumerate(self.pos_list)}
 
@@ -109,10 +110,17 @@ class PuzzlePostprocessMixin:
 		for k, op in enumerate(self.op_list):
 			op.click_list = []
 			op.valid = True
+			start_pos = set()
+			end_pos = set()
 			for j, move in enumerate(op.moves):
 				move.pos_perm = [(self.pos_name_to_id[key], self.pos_name_to_id[value]) for key, value in move.pos_perm.items()]
+				start_pos.update([t[0] for t in move.pos_perm])
+				end_pos.update([t[1] for t in move.pos_perm])
 				for p, _ in move.pos_perm:
 					self.op_by_pos[p].append((k, j))
+			forbidden_pos = [self.pos_name_to_id[name] for name in op.forbidden_pos]
+			forbidden_pos.extend(end_pos - start_pos)
+			op.forbidden_pos = sorted(forbidden_pos)
 
 		for selector, op_name_list in self.selector_map.items():
 			sel_string, modifier = selector.split('&')

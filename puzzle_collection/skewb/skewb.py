@@ -26,5 +26,5 @@ with group(x, f):
 	URF = block("URF").add_part(mf_corner, "U")
 	URF.add_selectors(ms_corner_0, ms_corner_1)
 
-	op("H").add_moves(f("U/RF", "URF", "UFL")).add_selectors("UBR.0", "U/BR.0")
-	op("H'").add_moves(op("H").inverse()).add_selectors("UFL.1", "U/FL.1")
+	op("H").add_moves(f("U/RF", "URF", "UFL")).click("UBR.0", "U/BR.0").drag()
+	op("H'").add_moves(op("H").inverse()).click("UFL.1", "U/FL.1").drag()

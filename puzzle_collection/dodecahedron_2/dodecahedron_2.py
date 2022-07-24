@@ -34,5 +34,5 @@ with group(x, y):
 	FUR = block("FUR").add_part(mf, "F")
 	FUR.add_selectors(ms_0, ms_1)
 
-	op("F").add_moves(y("FUR", "FU", "UF", "F")).add_selectors("URF.0")
-	op("F'").add_moves(op("F").inverse()).add_selectors("RFU.1")
+	op("F").add_moves(y("FUR", "FU", "UF", "F")).click("URF.0").drag()
+	op("F'").add_moves(op("F").inverse()).click("RFU.1").drag()

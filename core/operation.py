@@ -1,5 +1,3 @@
-
-
 from .transforms import Transform, TransformSequence
 from .move import Move
 
@@ -30,6 +28,7 @@ class Operation:
 		self.moves = []
 		self.cmd = name
 		self.drag_modifier = None
+		self.forbidden_pos = set()
 
 	def add_move(self, move):
 		for move0 in self.moves:
@@ -47,6 +46,9 @@ class Operation:
 						raise RuntimeError('Conflicting moves')
 		self.moves.append(move)
 
+	def forbid(self, positions):
+		self.forbidden_pos.update(positions)
+
 	def set_cmd(self, cmd):
 		self.cmd = cmd
 
@@ -62,20 +64,33 @@ class OperationHandle:
 	def inverse(self):
 		return self.puzzle.get_op(self.name).inverse()
 
-	def add_moves(self, *args, cycle = True):
+	def add_moves(self, *args):
 		if len(args) == 0:
 			return self
-		if isinstance(args[0], TransformSequence):
-			raise NotImplementedError
 		moves = []
-		for arg in args:
-			if isinstance(arg, Move):
-				moves.append(arg)
-			elif isinstance(arg, list):
-				moves.extend(arg)
-			elif isinstance(arg, OperationHandle):
-				moves.extend(self.puzzle.get_op(arg.name).moves)
+		if isinstance(args[0], TransformSequence):
+			pos_perm = {}
+			for cycle in args[1:]:
+				for i in range(len(cycle) - 1):
+					pos_perm[cycle[i]] = cycle[i + 1]
+				if isinstance(cycle, tuple):
+					pos_perm[cycle[-1]] = cycle[0]
+			moves.append(Move(args[0], pos_perm))
+		else:
+			for arg in args:
+				if isinstance(arg, Move):
+					moves.append(arg)
+				elif isinstance(arg, list):
+					moves.extend(arg)
+				elif isinstance(arg, OperationHandle):
+					moves.extend(self.puzzle.get_op(arg.name).moves)
 		self.puzzle.op_add_move(self.name, moves)
+		return self
+
+	def forbid(self, *positions):
+		if isinstance(positions[0], list):
+			positions = positions[0]
+		self.puzzle.op_forbid(self.name, positions)
 		return self
 
 	def click(self, *selectors):
@@ -118,6 +133,11 @@ class PuzzleOperationMixin:
 			op = self.get_op(arg_list[0])
 			for move in arg_list[1]:
 				op.add_move(move)
+
+	def op_forbid(self, op_name, positions):
+		arg_lists = self.sym_stack[-1].transform([op_name, positions])
+		for arg_list in arg_lists:
+			self.get_op(arg_list[0]).forbid(arg_list[1])
 
 	def op_click(self, op_name, selectors):
 		arg_lists = self.sym_stack[-1].transform([op_name, selectors])
