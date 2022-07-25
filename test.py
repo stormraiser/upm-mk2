@@ -335,18 +335,19 @@ class PuzzleWindow(pyglet.window.Window):
 		self.last_mouse_y = y
 		self.mouse_move_after_down = True
 		if buttons & pyglet.window.mouse.RIGHT:
-			vv0 = np.array(self.pixel_to_trackball(x - dx, y - dy), dtype = np.float32)
-			wv0 = self.view_mat[:3, :3].transpose() @ vv0
-			wv0 = wv0 / np.linalg.norm(wv0)
-			vv1 = np.array(self.pixel_to_trackball(x, y), dtype = np.float32)
-			wv1 = self.view_mat[:3, :3].transpose() @ vv1
-			wv1 = wv1 / np.linalg.norm(wv1)
-			n = np.cross(wv0, wv1)
-			n = n / np.linalg.norm(n)
-			n = np.array([n[0], n[1], n[2], 0], dtype = np.float32)
-			angle = math.acos(min(1, np.dot(wv0, wv1))) * 1.5
-			self.mmat_t = core.rotation_mat(n, angle) @ self.mmat_t
-			self.inv_mmat_t = np.linalg.inv(self.mmat_t)
+			if abs(dx) + abs(dy) > 0:
+				vv0 = np.array(self.pixel_to_trackball(x - dx, y - dy), dtype = np.float32)
+				wv0 = self.view_mat[:3, :3].transpose() @ vv0
+				wv0 = wv0 / np.linalg.norm(wv0)
+				vv1 = np.array(self.pixel_to_trackball(x, y), dtype = np.float32)
+				wv1 = self.view_mat[:3, :3].transpose() @ vv1
+				wv1 = wv1 / np.linalg.norm(wv1)
+				n = np.cross(wv0, wv1)
+				n = n / np.linalg.norm(n)
+				n = np.array([n[0], n[1], n[2], 0], dtype = np.float32)
+				angle = math.acos(min(1, np.dot(wv0, wv1))) * 1.5
+				self.mmat_t = core.rotation_mat(n, angle) @ self.mmat_t
+				self.inv_mmat_t = np.linalg.inv(self.mmat_t)
 		elif buttons & pyglet.window.mouse.MIDDLE:
 			l = short_side / 2
 			t = (dx * self.view_mat[0, :3] + dy * self.view_mat[1, :3]) / l * 50
