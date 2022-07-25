@@ -65,8 +65,8 @@ class PuzzleRuntimeMixin:
 					block.current_transform = block.next_transform
 				self.state[pos_id] = -1
 				new_state.append((target, block_id))
-			for pos_id, block_id in new_state:
-				self.state[pos_id] = block_id
+		for pos_id, block_id in new_state:
+			self.state[pos_id] = block_id
 		self.update_click_map()
 
 	def set_highlight(self, op_ids):

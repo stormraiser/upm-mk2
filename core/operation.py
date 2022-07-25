@@ -120,9 +120,9 @@ class PuzzleOperationMixin:
 
 	def add_click(self, selector, op_name):
 		if selector in self.selector_map:
-			self.selector_map[selector].append(op_name)
+			self.selector_map[selector].add(op_name)
 		else:
-			self.selector_map[selector] = [op_name]
+			self.selector_map[selector] = {op_name}
 
 	def set_drag(self, op_name, modifier):
 		self.get_op(op_name).drag_modifier = modifier
