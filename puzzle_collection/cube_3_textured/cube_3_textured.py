@@ -2,12 +2,12 @@ x = rotate(-90, 1, 0, 0) @ tag_cycle("FUBD")
 y = rotate(-90, 0, 1, 0) @ tag_cycle("RFLB")
 
 color("body", 0.15, 0.15, 0.15, 2)
-texture("U", "texture.png",  0, 0,  1 / 171,  -1 / 171, 0, 0,  1 / 6, 1 / 6)
-texture("D", "texture.png",  0, 0, -1 / 171,  -1 / 171, 0, 0,  1 / 2, 1 / 6)
-texture("R", "texture.png",  0,  1 / 171, 0,  0, 0, -1 / 171,  5 / 6, 1 / 6)
-texture("L", "texture.png",  0, -1 / 171, 0,  0, 0, -1 / 171,  1 / 6, 1 / 2)
-texture("F", "texture.png",   1 / 171, 0, 0,  0, -1 / 171, 0,  1 / 2, 1 / 2)
-texture("B", "texture.png",  -1 / 171, 0, 0,  0, -1 / 171, 0,  5 / 6, 1 / 2)
+texture("U", "texture.jpg",  0, 0,  1 / 171,  -1 / 171, 0, 0,  1 / 6, 1 / 6)
+texture("D", "texture.jpg",  0, 0, -1 / 171,  -1 / 171, 0, 0,  1 / 2, 1 / 6)
+texture("R", "texture.jpg",  0,  1 / 171, 0,  0, 0, -1 / 171,  5 / 6, 1 / 6)
+texture("L", "texture.jpg",  0, -1 / 171, 0,  0, 0, -1 / 171,  1 / 6, 1 / 2)
+texture("F", "texture.jpg",   1 / 171, 0, 0,  0, -1 / 171, 0,  1 / 2, 1 / 2)
+texture("B", "texture.jpg",  -1 / 171, 0, 0,  0, -1 / 171, 0,  5 / 6, 1 / 2)
 
 mb = "cubelet_3.stl"
 mf = "sticker_3.stl"
