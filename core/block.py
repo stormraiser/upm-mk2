@@ -64,6 +64,19 @@ class BlockHandle:
 		self.puzzle.block_start_from(self.name, position_name)
 		return self
 
+	def remove(self):
+		self.puzzle.block_remove(self.name)
+		return self
+
+	def exists(self):
+		return self.name in self.puzzle.blocks
+
+	def setattr(self, attr_name, value):
+		self.puzzle.block_set_attr(self.name, attr_name, value)
+
+	def getattr(self, attr_name):
+		return getattr(self.puzzle.get_block(self.name), attr_name)
+
 class MergedBlockHandle:
 
 	def __init__(self, puzzle, names):
@@ -125,3 +138,23 @@ class PuzzleBlockMixin:
 		merged_arg_lists = merge_name_sets(arg_lists)
 		for arg_list in merged_arg_lists:
 			self.get_block(min(arg_list[0])).add_part(*arg_list[1:])
+
+	def block_remove(self, block_name):
+		# fix this later: sym and merge should propagate
+		for mset in self.block_merge_sets:
+			if block_name in mset[0]:
+				block_names = mset[0]
+				break
+		else:
+			block_names = [block_name]
+		
+		arg_lists = self.sym_stack[-1].transform(block_names)
+		for arg_list in arg_lists:
+			for name in arg_list:
+				if name in self.blocks:
+					del self.blocks[name]
+
+	def block_setattr(self, block_name, attr_name, value):
+		arg_lists = self.sym_stack[-1].transform([block_name, attr_name, value])
+		for arg_list in arg_lists:
+			setattr(self.get_block(block_name), attr_name, value)
