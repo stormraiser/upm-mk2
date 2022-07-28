@@ -1,149 +1,48 @@
-import os, math, time, sys, struct
-import importlib, builtins, pathlib
+import math, time, struct
 
-import numpy as np
-import pyglet
+from PySide6 import QtCore, QtOpenGL, QtOpenGLWidgets, QtGui
+from OpenGL import GL
 import moderngl
-
+import numpy as np
 from mat_utils import *
+from .shaders import *
 import core
+from PIL import Image
 
-vertex_shader_code = '''
-#version 330
+class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 
-in vec3 in_vpos;
-in vec3 in_vnormal;
-in vec4 in_vcolor;
-in mat4 mmat;
-in mat4 mvp;
-in vec3 in_light_pos;
+	def __init__(self, parent = None, f = QtCore.Qt.WindowFlags()):
+		super().__init__(parent, f)
 
-out vec3 vpos;
-out vec3 vnormal;
-out vec4 vcolor;
-out vec3 light_pos;
+		fmt = QtGui.QSurfaceFormat()
+		fmt.setVersion(3, 3)
+		fmt.setSamples(4)
+		fmt.setProfile(QtGui.QSurfaceFormat.CoreProfile)
+		self.setFormat(fmt)
 
-void main() {
-	vpos = vec3(mmat * vec4(in_vpos, 1.0));
-	vnormal = vec3(mmat * vec4(in_vnormal, 0.0));
-	vcolor = in_vcolor;
-	light_pos = in_light_pos;
-	gl_Position = mvp * vec4(in_vpos, 1.0);
-}
-'''
+		self.puzzle = None
 
-fragment_shader_code = '''
-#version 330
+		self.animation_time = 0.5
 
-in vec3 vpos;
-in vec3 vnormal;
-in vec4 vcolor;
-in vec3 light_pos;
+		self.shift_down = False
+		self.ctrl_down = False
+		self.alt_down = False
 
-out vec3 out_fcolor;
+		self.setMouseTracking(True)
+		self.reset()
 
-void main() {
-	vec3 d = light_pos - vpos;
-	float sqdis = dot(d, d);
-	vec3 d_n = d / sqrt(sqdis);
-	float t = max(dot(d_n, vnormal), 0);
-	t = (t + pow(t, 10) * vcolor[3]) / sqdis;
-	out_fcolor = vec3(vcolor) * (t * 550000 + 0.2);
-}
-'''
+		self.startTimer(17)
 
-tex_vertex_shader_code = '''
-#version 330
+		self.paint_fbo = None
 
-in vec3 in_vpos;
-in vec3 in_vnormal;
-in mat4 mmat;
-in mat4 mvp;
-in mat4 tcmat;
-in vec3 in_light_pos;
-in vec2 in_highlight;
-
-out vec3 vpos;
-out vec3 vnormal;
-out vec3 light_pos;
-out vec2 tex_coord;
-out vec2 highlight;
-
-void main() {
-	vpos = vec3(mmat * vec4(in_vpos, 1.0));
-	vnormal = vec3(mmat * vec4(in_vnormal, 0.0));
-	tex_coord = vec2(tcmat * vec4(in_vpos, 1.0));
-	light_pos = in_light_pos;
-	highlight = in_highlight;
-	gl_Position = mvp * vec4(in_vpos, 1.0);
-}
-'''
-
-tex_fragment_shader_code = '''
-#version 330
-
-in vec3 vpos;
-in vec3 vnormal;
-in vec3 light_pos;
-in vec2 tex_coord;
-in vec2 highlight;
-
-uniform sampler2D tex;
-
-out vec3 out_fcolor;
-
-void main() {
-	vec3 vcolor = vec3(texture(tex, tex_coord)) * highlight[0] + highlight[1];
-	vec3 d = light_pos - vpos;
-	float sqdis = dot(d, d);
-	vec3 d_n = d / sqrt(sqdis);
-	float t = max(dot(d_n, vnormal), 0) / sqdis;
-	out_fcolor = vcolor * (t * 550000 + 0.2);
-}
-'''
-
-picker_vertex_shader_code = '''
-#version 330
-
-in vec3 in_vpos;
-in vec3 in_vcolor;
-in mat4 mvp;
-
-out vec3 vcolor;
-
-void main() {
-	vcolor = in_vcolor;
-	gl_Position = mvp * vec4(in_vpos, 1.0);
-}
-'''
-
-picker_fragment_shader_code = '''
-#version 330
-
-in vec3 vcolor;
-
-out vec3 out_fcolor;
-
-void main() {
-	out_fcolor = vcolor;
-}
-'''
-
-window_w = 640
-window_h = 480
-short_side = min(window_w, window_h)
-animation_time = 0.5
-base_path = pathlib.Path(__file__).resolve()
-sys.path.append(str(base_path.parent / 'lib'))
-puzzle_path = pathlib.Path(sys.argv[1]).resolve()
-sys.path.append(str(puzzle_path.parent))
-
-class PuzzleWindow(pyglet.window.Window):
-
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-
-		self.puzzle = core.Puzzle(puzzle_path, base_path.parent / 'lib')
+	def reset(self):
+		self.near = 100
+		self.far = 400
+		self.view_h = math.tan(25 / 180 * math.pi)
+		w = self.size().width()
+		h = self.size().height()
+		self.aspect = w / h
+		self.proj_mat = make_proj_mat(math.atan(self.view_h), self.aspect, self.near, self.far)
 
 		self.cam_pos = np.array([150, 150, 150], dtype = np.float32)
 		self.look_at = np.array([0, 0, 0], dtype = np.float32)
@@ -151,41 +50,10 @@ class PuzzleWindow(pyglet.window.Window):
 		self.view_mat = make_view_mat(self.cam_pos, self.look_at, self.y_vec)
 		self.inv_view_mat = np.linalg.inv(self.view_mat)
 
-		self.near = 100
-		self.far = 400
-		self.view_h = math.tan(25 / 180 * math.pi)
-		self.aspect = 4 / 3
-		self.proj_mat = make_proj_mat(math.atan(self.view_h), self.aspect, self.near, self.far)
-
-		self.ctx = moderngl.create_context()
-		self.ctx.enable(moderngl.DEPTH_TEST)
-		self.shader_program = self.ctx.program(
-			vertex_shader = vertex_shader_code,
-			fragment_shader = fragment_shader_code
-		)
-		self.tex_shader_program = self.ctx.program(
-			vertex_shader = tex_vertex_shader_code,
-			fragment_shader = tex_fragment_shader_code
-		)
-		self.picker_shader_program = self.ctx.program(
-			vertex_shader = picker_vertex_shader_code,
-			fragment_shader = picker_fragment_shader_code
-		)
-
-		self.puzzle.init_gl(self.ctx)
-
 		self.light_pos = np.array([300, 600, 450], dtype = np.float32)
-		self.vbo_light_pos = self.ctx.buffer(self.light_pos.tobytes())
 
-		self.time0 = time.time()
-
-		self.picker_buffer = self.ctx.simple_framebuffer((window_w, window_h))
 		self.mmat_t = np.eye(4, dtype = np.float32)
 		self.inv_mmat_t = np.eye(4, dtype = np.float32)
-
-		self.shift_down = False
-		self.ctrl_down = False
-		self.alt_down = False
 
 		self.lhighlight = -1
 		self.rhighlight = -1
@@ -203,28 +71,85 @@ class PuzzleWindow(pyglet.window.Window):
 		self.animating = False
 		self.animation_start = 0
 
-	def pixel_to_trackball(self, px, py):
-		l = short_side / 2
-		x = (px - window_w / 2 + 0.5) / l
-		y = (py - window_h / 2 + 0.5) / l
-		r = x * x + y * y
-		z = (2 - r) ** 0.5 if r <= 1 else 1 / r ** 0.5
-		return x, y, z
+		self.time0 = time.time()
 
-	def update(self, dt):
+	def timerEvent(self, event):
 		if self.animating:
 			current_time = time.time()
-			if current_time - self.animation_start >= animation_time:
+			if current_time - self.animation_start >= self.animation_time:
 				self.animating = False
 				self.puzzle.finish_op()
 				self.update_active_selector(self.last_mouse_x, self.last_mouse_y)
 			else:
-				self.puzzle.animate(t = (current_time - self.animation_start) / animation_time)
+				self.puzzle.animate(t = (current_time - self.animation_start) / self.animation_time)
+		self.update()
+
+	def initializeGL(self):
+		self.f = self.context().functions()
+
+		w = self.size().width()
+		h = self.size().height()
+
+		self.ctx = moderngl.create_context()
+		self.shader_program = self.ctx.program(
+			vertex_shader = vertex_shader_code,
+			fragment_shader = fragment_shader_code
+		)
+		self.tex_shader_program = self.ctx.program(
+			vertex_shader = tex_vertex_shader_code,
+			fragment_shader = tex_fragment_shader_code
+		)
+		self.picker_shader_program = self.ctx.program(
+			vertex_shader = picker_vertex_shader_code,
+			fragment_shader = picker_fragment_shader_code
+		)
+
+		self.test_shader_program = self.ctx.program(
+			vertex_shader = test_vertex_shader_code,
+			fragment_shader = test_fragment_shader_code
+		)
+
+		self.vbo_light_pos = self.ctx.buffer(self.light_pos.tobytes())
+
+		if self.puzzle is not None:
+			self.puzzle.init_gl(self.ctx)
+
+		self.picker_buffer = QtOpenGL.QOpenGLFramebufferObject(w, h, QtOpenGL.QOpenGLFramebufferObject.Depth)
+
+		ret = self.grabFramebuffer()
+		self.render_w = ret.size().width()
+		self.render_h = ret.size().height()
+
+	def set_puzzle(self, puzzle):
+		self.puzzle = puzzle
+		self.puzzle.init_gl(self.ctx)
+		#self.update()
+
+	def pixel_to_trackball(self, px, py):
+		w = self.size().width()
+		h = self.size().height()
+		l = min(w, h) / 2
+		x = (px - w / 2 + 0.5) / l
+		y = (py - h / 2 + 0.5) / l
+		r = x * x + y * y
+		z = (2 - r) ** 0.5 if r <= 1 else 1 / r ** 0.5
+		return x, y, z
+
+	def resizeGL(self, w, h):
+		self.picker_buffer = QtOpenGL.QOpenGLFramebufferObject(w, h, QtOpenGL.QOpenGLFramebufferObject.Depth)
+		self.aspect = w / h
+		self.proj_mat = make_proj_mat(math.atan(self.view_h), self.aspect, self.near, self.far)
+
+		ret = self.grabFramebuffer()
+		self.render_w = ret.size().width()
+		self.render_h = ret.size().height()
 
 	def unproject(self, x, y, depth):
+		w = self.size().width()
+		h = self.size().height()
 		depth = depth * 2 - 1
-		px = (x - window_w / 2 + 0.5) / window_w * 2
-		py = (y - window_h / 2 + 0.5) / window_h * 2
+		px = (x - w / 2 + 0.5) / w * 2
+		py = (y - h / 2 + 0.5) / h * 2
 		vz = -2 * self.near * self.far / ((self.near - self.far) * depth + self.near + self.far)
 		pw = -vz
 		vx = pw * px / self.proj_mat[0, 0]
@@ -235,6 +160,8 @@ class PuzzleWindow(pyglet.window.Window):
 		return self.inv_mmat_t @ (self.inv_view_mat @ vpos)
 
 	def drag_match(self, drag_path, drag_matching_paths):
+		w = self.size().width()
+		h = self.size().height()
 		if len(drag_matching_paths) == 0:
 			return -1
 		h = max(1, len(drag_path) // 20)
@@ -244,8 +171,8 @@ class PuzzleWindow(pyglet.window.Window):
 		for op_id, path in drag_matching_paths:
 			mpath = ((self.proj_mat @ self.view_mat @ self.mmat_t) @ path.transpose()).transpose()
 			mpath = mpath[:, :2] / mpath[:, 3:]
-			mx = (mpath[:, 0] + 1) / 2 * window_w - 0.5
-			my = (mpath[:, 1] + 1) / 2 * window_h - 0.5
+			mx = (mpath[:, 0] + 1) / 2 * w - 0.5
+			my = (mpath[:, 1] + 1) / 2 * h - 0.5
 			mpath = np.stack((mx, my), 1)
 			diff = np.expand_dims(dpath, 1) - np.expand_dims(mpath, 0)
 			dis = np.sqrt(np.power(diff, 2).sum(2))
@@ -257,12 +184,22 @@ class PuzzleWindow(pyglet.window.Window):
 		return min_id
 
 	def update_active_selector(self, x, y):
-		if self.animating:
+		if self.puzzle is None or self.animating:
 			return
+		#print(':', x, y)
 
-		self.picker_buffer.use()
-		self.ctx.clear(0, 0, 0)
-		self.picker_buffer.scissor = (x, y, 1, 1)
+		self.picker_buffer.bind()
+
+		self.f.glViewport(0, 0, self.size().width(), self.size().height())
+		print(self.render_w, self.render_h)
+
+		#print(self.picker_buffer.width(), self.picker_buffer.height())
+
+		self.f.glEnable(GL.GL_DEPTH_TEST)
+		self.f.glClearColor(0, 0, 0, 0)
+		self.f.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT | GL.GL_STENCIL_BUFFER_BIT)
+		#self.f.glEnable(GL.GL_SCISSOR_TEST)
+		#self.f.glScissor(x, y, 1, 1)
 
 		for model in self.puzzle.model_list:
 			part_instances = sum(model.tex_instances, start = model.part_instances)
@@ -287,9 +224,9 @@ class PuzzleWindow(pyglet.window.Window):
 				vbo_inst.release()
 				vao.release()
 
-		r, g, b = self.picker_buffer.read(viewport = (x, y, 1, 1))
-		depth = self.picker_buffer.read(attachment = -1, viewport = (x, y, 1, 1), dtype = 'f4')
-		depth = struct.unpack('f', depth)[0]
+
+		r, g, b = GL.glReadPixels(x, y, 1, 1, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, [0, 0, 0])
+		depth = GL.glReadPixels(x, y, 1, 1, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT, [0])[0]
 		picked_part = self.puzzle.pick_color_to_instance_id(r, g, b)
 		if picked_part >= 0:
 			self.picked_block = self.puzzle.part_id_to_block_id[picked_part]
@@ -319,7 +256,7 @@ class PuzzleWindow(pyglet.window.Window):
 				vbo_inst.release()
 				vao.release()
 
-		r, g, b = self.picker_buffer.read(viewport = (x, y, 1, 1))
+		r, g, b = GL.glReadPixels(x, y, 1, 1, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, [0, 0, 0])
 		picked_selector = self.puzzle.pick_color_to_instance_id(r, g, b, selector = True)
 		if picked_selector >= 0:
 			mid_id = (4 if self.shift_down else 0) + (2 if self.ctrl_down else 0) + (1 if self.alt_down else 0)
@@ -329,64 +266,82 @@ class PuzzleWindow(pyglet.window.Window):
 			self.lhighlight = -1
 			self.rhighlight = -1
 
-	def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-		self.drag_path.append((x, y))
+		self.f.glDisable(GL.GL_SCISSOR_TEST)
+		self.f.glDisable(GL.GL_DEPTH_TEST)
+		self.picker_buffer.bindDefault()
+
+	def mouseMoveEvent(self, event):
+		x = event.x()
+		y = self.size().height() - event.y() - 1
+		dx = x - self.last_mouse_x
+		dy = y - self.last_mouse_y
 		self.last_mouse_x = x
 		self.last_mouse_y = y
-		self.mouse_move_after_down = True
-		if buttons & pyglet.window.mouse.RIGHT:
-			if abs(dx) + abs(dy) > 0:
-				vv0 = np.array(self.pixel_to_trackball(x - dx, y - dy), dtype = np.float32)
-				wv0 = self.view_mat[:3, :3].transpose() @ vv0
-				wv0 = wv0 / np.linalg.norm(wv0)
-				vv1 = np.array(self.pixel_to_trackball(x, y), dtype = np.float32)
-				wv1 = self.view_mat[:3, :3].transpose() @ vv1
-				wv1 = wv1 / np.linalg.norm(wv1)
-				n = np.cross(wv0, wv1)
-				n = n / np.linalg.norm(n)
-				n = np.array([n[0], n[1], n[2], 0], dtype = np.float32)
-				angle = math.acos(min(1, np.dot(wv0, wv1))) * 1.5
-				self.mmat_t = core.rotation_mat(n, angle) @ self.mmat_t
+		if event.buttons():
+			self.drag_path.append((x, y))
+			self.mouse_move_after_down = True
+			if event.buttons() & QtCore.Qt.RightButton:
+				if abs(dx) + abs(dy) > 0:
+					vv0 = np.array(self.pixel_to_trackball(x - dx, y - dy), dtype = np.float32)
+					wv0 = self.view_mat[:3, :3].transpose() @ vv0
+					wv0 = wv0 / np.linalg.norm(wv0)
+					vv1 = np.array(self.pixel_to_trackball(x, y), dtype = np.float32)
+					wv1 = self.view_mat[:3, :3].transpose() @ vv1
+					wv1 = wv1 / np.linalg.norm(wv1)
+					n = np.cross(wv0, wv1)
+					n = n / np.linalg.norm(n)
+					n = np.array([n[0], n[1], n[2], 0], dtype = np.float32)
+					angle = math.acos(min(1, np.dot(wv0, wv1))) * 1.5
+					self.mmat_t = core.rotation_mat(n, angle) @ self.mmat_t
+					self.inv_mmat_t = np.linalg.inv(self.mmat_t)
+			elif event.buttons() & QtCore.Qt.MiddleButton:
+				l = short_side / 2
+				t = (dx * self.view_mat[0, :3] + dy * self.view_mat[1, :3]) / l * 50
+				self.mmat_t = core.translation_mat(t) @ self.mmat_t
 				self.inv_mmat_t = np.linalg.inv(self.mmat_t)
-		elif buttons & pyglet.window.mouse.MIDDLE:
-			l = short_side / 2
-			t = (dx * self.view_mat[0, :3] + dy * self.view_mat[1, :3]) / l * 50
-			self.mmat_t = core.translation_mat(t) @ self.mmat_t
-			self.inv_mmat_t = np.linalg.inv(self.mmat_t)
-		#self.update_active_selector(x, y)
+		else:
+			self.update_active_selector(x, y)
 
-	def on_key_press(self, symbol, modifiers):
-		if symbol in [pyglet.window.key.LSHIFT, pyglet.window.key.RSHIFT]:
+	def keyPressEvent(self, event):
+		if event.key() == QtCore.Qt.Key_Shift:
 			self.shift_down = True
-		elif symbol in [pyglet.window.key.LCTRL, pyglet.window.key.RCTRL]:
+		elif event.key() == QtCore.Qt.Key_Control:
 			self.ctrl_down = True
-		elif symbol in [pyglet.window.key.LALT, pyglet.window.key.RALT]:
+		elif event.key() == QtCore.Qt.Key_Alt:
 			self.alt_down = True
 		self.update_active_selector(self.last_mouse_x, self.last_mouse_y)
 
-	def on_key_release(self, symbol, modifiers):
-		if symbol in [pyglet.window.key.LSHIFT, pyglet.window.key.RSHIFT]:
+	def keyReleaseEvent(self, event):
+		if event.key() == QtCore.Qt.Key_Shift:
 			self.shift_down = False
-		elif symbol in [pyglet.window.key.LCTRL, pyglet.window.key.RCTRL]:
+		elif event.key() == QtCore.Qt.Key_Control:
 			self.ctrl_down = False
-		elif symbol in [pyglet.window.key.LALT, pyglet.window.key.RALT]:
+		elif event.key() == QtCore.Qt.Key_Alt:
 			self.alt_down = False
 		self.update_active_selector(self.last_mouse_x, self.last_mouse_y)
 
-	def on_mouse_press(self, x, y, button, modifiers):
-		if button == pyglet.window.mouse.LEFT:
+	def mousePressEvent(self, event):
+		x = event.x()
+		y = self.size().height() - event.y() - 1
+		if event.button() == QtCore.Qt.LeftButton:
 			self.mouse_down_x = x
 			self.mouse_down_y = y
 			self.mouse_down_block = self.picked_block
 			self.mouse_down_pos = self.picked_pos
 			self.drag_path = [(x, y)]
 
-	def on_mouse_release(self, x, y, button, modifiers):
+	def mouseReleaseEvent(self, event):
+		x = event.x()
+		y = self.size().height() - event.y() - 1
+		l = min(self.size().width(), self.size().height())
+
 		if self.mouse_move_after_down:
 			self.mouse_move_after_down = False
-			if (button == pyglet.window.mouse.LEFT) and (self.mouse_down_block >= 0):
+			if self.puzzle is None:
+				return
+			if (event.button() == QtCore.Qt.LeftButton) and (self.mouse_down_block >= 0):
 				move_dis = ((x - self.mouse_down_x) ** 2 + (y - self.mouse_down_y) ** 2) ** 0.5
-				if move_dis >= short_side / 50:
+				if move_dis >= l / 50:
 					self.lhighlight = -1
 					self.rhighlight = -1
 					self.picked_block = -1
@@ -400,19 +355,14 @@ class PuzzleWindow(pyglet.window.Window):
 						return
 			self.update_active_selector(x, y)
 		else:
-			self.on_mouse_click(x, y, button)
-
-	def on_mouse_motion(self, x, y, dx, dy):
-		self.last_mouse_x = x
-		self.last_mouse_y = y
-		self.update_active_selector(x, y)
+			self.on_mouse_click(x, y, event.button())
 
 	def on_mouse_click(self, x, y, button):
 		if self.animating:
 			return
-		if button & pyglet.window.mouse.LEFT:
+		if button == QtCore.Qt.LeftButton:
 			op_id = self.lhighlight
-		elif button & pyglet.window.mouse.RIGHT:
+		elif button == QtCore.Qt.RightButton:
 			op_id = self.rhighlight
 		if op_id == -1:
 			return
@@ -420,9 +370,13 @@ class PuzzleWindow(pyglet.window.Window):
 		self.animating = True
 		self.animation_start = time.time()
 
-	def on_draw(self):
-		self.ctx.screen.use()
-		self.ctx.clear(0.7, 0.7, 0.7)
+	def paintGL(self):
+		self.f.glEnable(GL.GL_DEPTH_TEST)
+		self.f.glClearColor(0.7, 0.7, 0.7, 1)
+		self.f.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT | GL.GL_STENCIL_BUFFER_BIT)
+
+		if self.puzzle is None:
+			return
 
 		highlight_ops = []
 		if self.lhighlight >= 0:
@@ -495,11 +449,3 @@ class PuzzleWindow(pyglet.window.Window):
 					vao.render(moderngl.TRIANGLES, instances = len(one_tex_instances))
 					vbo_inst.release()
 					vao.release()
-
-screen = pyglet.canvas.get_display().get_default_screen()
-config = pyglet.gl.Config(double_buffer = 1, sample_buffers = 1, samples = 4, depth_size = 24)
-config = screen.get_best_config(config)
-window = PuzzleWindow(width = window_w, height = window_h, config = config)
-
-pyglet.clock.schedule_interval(window.update, 1 / 60)
-pyglet.app.run()

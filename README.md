@@ -6,4 +6,4 @@ This project is in a very early stage of development. I did not intend to publis
 
 Run `test.py <filename>`. `<filename>` is the path to a puzzle definition file. Those are themselves Python codes. Examples can be found in the `puzzle_collection` directory. The documentation will gradually be added to the project wiki. Controls: dragging with left mouse button and (for some puzzles, when there are highlighted pieces) clicking with left or right mouse button to make a move. Dragging with right mouse button to rotate the view.
 
-Requirements: NumPy, trimesh, pyglet and ModernGL
+Requirements: NumPy, trimesh, PySide6 and ModernGL
