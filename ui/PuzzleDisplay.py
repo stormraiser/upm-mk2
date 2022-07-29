@@ -121,9 +121,10 @@ class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 		self.render_h = ret.size().height()
 
 	def set_puzzle(self, puzzle):
+		if self.puzzle is not None:
+			self.puzzle.finalize_gl()
 		self.puzzle = puzzle
 		self.puzzle.init_gl(self.ctx)
-		#self.update()
 
 	def pixel_to_trackball(self, px, py):
 		w = self.size().width()
@@ -164,8 +165,8 @@ class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 		h = self.size().height()
 		if len(drag_matching_paths) == 0:
 			return -1
-		h = max(1, len(drag_path) // 20)
-		dpath = np.array(drag_path[::h], dtype = np.float32)
+		step_size = max(1, len(drag_path) // 20)
+		dpath = np.array(drag_path[::step_size], dtype = np.float32)
 		min_dis = 1e10
 		min_id = -1
 		for op_id, path in drag_matching_paths:
@@ -186,20 +187,17 @@ class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 	def update_active_selector(self, x, y):
 		if self.puzzle is None or self.animating:
 			return
-		#print(':', x, y)
 
 		self.picker_buffer.bind()
 
 		self.f.glViewport(0, 0, self.size().width(), self.size().height())
-		print(self.render_w, self.render_h)
 
-		#print(self.picker_buffer.width(), self.picker_buffer.height())
 
 		self.f.glEnable(GL.GL_DEPTH_TEST)
 		self.f.glClearColor(0, 0, 0, 0)
 		self.f.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT | GL.GL_STENCIL_BUFFER_BIT)
-		#self.f.glEnable(GL.GL_SCISSOR_TEST)
-		#self.f.glScissor(x, y, 1, 1)
+		self.f.glEnable(GL.GL_SCISSOR_TEST)
+		self.f.glScissor(x, y, 1, 1)
 
 		for model in self.puzzle.model_list:
 			part_instances = sum(model.tex_instances, start = model.part_instances)
@@ -223,7 +221,6 @@ class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 				vao.render(moderngl.TRIANGLES, instances = len(part_instances))
 				vbo_inst.release()
 				vao.release()
-
 
 		r, g, b = GL.glReadPixels(x, y, 1, 1, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, [0, 0, 0])
 		depth = GL.glReadPixels(x, y, 1, 1, GL.GL_DEPTH_COMPONENT, GL.GL_FLOAT, [0])[0]
@@ -345,8 +342,8 @@ class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 					self.lhighlight = -1
 					self.rhighlight = -1
 					self.picked_block = -1
-					mid_id = (4 if self.shift_down else 0) + (2 if self.ctrl_down else 0) + (1 if self.alt_down else 0)
-					drag_matching_paths = self.puzzle.get_drag_matching_path(self.mouse_down_block, self.mouse_down_pos, mid_id)
+					mod_id = (4 if self.shift_down else 0) + (2 if self.ctrl_down else 0) + (1 if self.alt_down else 0)
+					drag_matching_paths = self.puzzle.get_drag_matching_path(self.mouse_down_block, self.mouse_down_pos, mod_id)
 					op_id = self.drag_match(self.drag_path, drag_matching_paths)
 					if op_id >= 0:
 						self.puzzle.start_op(op_id)
@@ -416,7 +413,7 @@ class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 
 			for k, one_tex_instances in enumerate(model.tex_instances):
 				if len(one_tex_instances) > 0:
-					self.puzzle.texture_list[k].gl_tex.use()
+					self.puzzle.texture_list[k].gl_tex.bind()
 					all_inst_data = []
 					for block_id, part_id in one_tex_instances:
 						block = self.puzzle.block_list[block_id]

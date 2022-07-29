@@ -1,17 +1,20 @@
 from PIL import Image
 import numpy as np
+from PySide6 import QtOpenGL, QtGui
 
 class Texture:
 
 	def __init__(self, path):
-		self.image = Image.open(str(path)).convert('RGB')
+		self.image = QtGui.QImage(str(path))
 
 	def init_gl(self, ctx):
-		self.gl_tex = ctx.texture(
-			(self.image.width, self.image.height),
-			3, self.image.tobytes()
-		)
-		self.gl_tex.build_mipmaps()
+		self.gl_tex = QtOpenGL.QOpenGLTexture(self.image)
+		self.gl_tex.setMinificationFilter(QtOpenGL.QOpenGLTexture.LinearMipMapLinear)
+		self.gl_tex.setMagnificationFilter(QtOpenGL.QOpenGLTexture.Linear)
+
+	def finalize_gl(self):
+		self.gl_tex.release()
+		self.gl_tex.destroy()
 
 class PuzzleTextureMixin:
 

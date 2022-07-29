@@ -17,17 +17,17 @@ export_names = [
 	'merge',
 	'color',
 	'op',
-	'texture'
+	'texture',
+	'input_buttons'
 ]
 
 class SourceFileLoaderWithExtraGlobals(importlib.machinery.SourceFileLoader):
 
-	def __init__(self, fullname, path, extra_globals):
+	def __init__(self, fullname, path):
 		super().__init__(fullname, path)
-		self.extra_globals = extra_globals
 
 	def exec_module(self, module):
-		module.__dict__.update(self.extra_globals)
+		module.__dict__.update(Puzzle.extra_globals)
 		super().exec_module(module)
 
 class Puzzle(
@@ -40,7 +40,11 @@ class Puzzle(
 	PuzzleTextureMixin
 ):
 
-	def __init__(self, puzzle_path, lib_dir):
+	current_active_puzzle = None
+
+	def __init__(self, window, puzzle_path, lib_dir):
+		#print(self)
+		self.window = window
 		self.tags = set()
 		self.sym_stack = [TransformSet(self, [Transform()])]
 		self.models = {}
@@ -67,12 +71,15 @@ class Puzzle(
 		self.clr_tex_map[name] = (False, r, g, b, specular)
 
 	def load_puzzle(self, puzzle_path, lib_dir):
+		Puzzle.current_active_puzzle = self
+
 		export_dict = {}
 		for name in export_names:
 			export_dict[name] = getattr(self, name)
+		Puzzle.current_extra_globals = export_dict
 
 		def make_loader(fullname, path):
-			return SourceFileLoaderWithExtraGlobals(fullname, path, export_dict)
+			return SourceFileLoaderWithExtraGlobals(fullname, path)
 		def puzzle_path_hook(path):
 			path_t = pathlib.Path(path).resolve()
 			if path_t.is_relative_to(lib_dir) or path_t.is_relative_to(puzzle_path.parent):
@@ -86,3 +93,59 @@ class Puzzle(
 		exec(pcode, export_dict)
 
 		sys.path_hooks.remove(puzzle_path_hook)
+
+	def input_buttons(self, *labels):
+		return self.window.get_input_buttons(labels[0], labels[1:])
+
+	@staticmethod
+	def _translate(*args):
+		return Puzzle.current_active_puzzle.translate(*args)
+
+	@staticmethod
+	def _rotate(*args):
+		return Puzzle.current_active_puzzle.rotate(*args)
+
+	@staticmethod
+	def _tag_cycle(*args):
+		return Puzzle.current_active_puzzle.tag_cycle(*args)
+
+	@staticmethod
+	def _group(*args):
+		return Puzzle.current_active_puzzle.group(*args)
+
+	@staticmethod
+	def _block(*args):
+		return Puzzle.current_active_puzzle.block(*args)
+
+	@staticmethod
+	def _merge(*args):
+		return Puzzle.current_active_puzzle.merge(*args)
+
+	@staticmethod
+	def _color(*args):
+		Puzzle.current_active_puzzle.color(*args)
+
+	@staticmethod
+	def _op(*args):
+		return Puzzle.current_active_puzzle.op(*args)
+
+	@staticmethod
+	def _texture(*args):
+		Puzzle.current_active_puzzle.texture(*args)
+
+	@staticmethod
+	def _input_buttons(*args):
+		return Puzzle.current_active_puzzle.input_buttons(*args)
+
+Puzzle.extra_globals = {
+	'translate': Puzzle._translate,
+	'rotate': Puzzle._rotate,
+	'tag_cycle': Puzzle._tag_cycle,
+	'group': Puzzle._group,
+	'block': Puzzle._block,
+	'merge': Puzzle._merge,
+	'color': Puzzle._color,
+	'op': Puzzle._op,
+	'texture': Puzzle._texture,
+	'input_buttons': Puzzle._input_buttons
+}

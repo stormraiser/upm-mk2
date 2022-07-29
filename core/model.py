@@ -15,6 +15,10 @@ class Model:
 		self.vbo_pos = ctx.buffer(self.vpos.tobytes())
 		self.vbo_normal = ctx.buffer(self.vnormal.tobytes())
 
+	def finalize_gl(self):
+		self.vbo_pos.release()
+		self.vbo_normal.release()
+
 class PuzzleModelMixin:
 
 	def get_model(self, path):

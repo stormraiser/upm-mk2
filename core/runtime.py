@@ -40,6 +40,12 @@ class PuzzleRuntimeMixin:
 		for texture in self.texture_list:
 			texture.init_gl(ctx)
 
+	def finalize_gl(self):
+		for model in self.model_list:
+			model.finalize_gl()
+		for texture in self.texture_list:
+			texture.finalize_gl()
+
 	def start_op(self, op_id):
 		self.current_op = self.op_list[op_id]
 

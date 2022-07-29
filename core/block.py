@@ -98,6 +98,7 @@ class PuzzleBlockMixin:
 		return BlockHandle(self, name)
 
 	def get_block(self, name):
+		#print(self)
 		if name in self.blocks:
 			return self.blocks[name]
 		else:

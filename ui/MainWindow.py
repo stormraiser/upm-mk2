@@ -4,6 +4,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 import core
 from .PuzzleDisplay import PuzzleDisplay
+from .ButtonInputDialog import ButtonInputDialog
 
 class MainWindow(QtWidgets.QWidget):
 
@@ -49,14 +50,33 @@ class MainWindow(QtWidgets.QWidget):
 		self.setLayout(main_layout)
 
 		self.open_button.clicked.connect(self.open_file)
+		self.reload_button.clicked.connect(self.reload)
+		self.last_puzzle_path = ''
 
 	@QtCore.Slot()
 	def open_file(self):
 		puzzle_path = QtWidgets.QFileDialog.getOpenFileName(self, "Open", str(self.base_path))[0]
-		if len(puzzle_path) > 0:
+		if puzzle_path != '':
+			self.last_puzzle_path = puzzle_path
 			puzzle_path = pathlib.Path(puzzle_path).resolve()
 			puzzle_dir = str(puzzle_path.parent)
 			sys.path.append(puzzle_dir)
-			puzzle = core.Puzzle(puzzle_path, self.base_path.parent / 'lib')
+			puzzle = core.Puzzle(self, puzzle_path, self.base_path.parent / 'lib')
 			self.display.set_puzzle(puzzle)
 			sys.path.remove(puzzle_dir)
+
+	@QtCore.Slot()
+	def reload(self):
+		if self.last_puzzle_path != '':
+			puzzle_path = pathlib.Path(self.last_puzzle_path).resolve()
+			puzzle_dir = str(puzzle_path.parent)
+			sys.path.append(puzzle_dir)
+			puzzle = core.Puzzle(self, puzzle_path, self.base_path.parent / 'lib')
+			self.display.set_puzzle(puzzle)
+			sys.path.remove(puzzle_dir)
+
+	def get_input_buttons(self, title, labels):
+		ret_ptr = [0]
+		dialog = ButtonInputDialog(self, title, labels, ret_ptr)
+		dialog.exec()
+		return ret_ptr[0]
