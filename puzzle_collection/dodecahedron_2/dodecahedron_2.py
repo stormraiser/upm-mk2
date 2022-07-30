@@ -30,7 +30,7 @@ with group(x, y):
 	block("F").add_part(m_center, "body")
 	block("FU").add_part(m_edge, "body")
 
-	merge("FUR", "URF").add_part(m_corner, "body")
+	link_block("FUR", "URF").add_part(m_corner, "body")
 	FUR = block("FUR").add_part(mf, "F")
 	FUR.add_selectors(ms_0, ms_1)
 

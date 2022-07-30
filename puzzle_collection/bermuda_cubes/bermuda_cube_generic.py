@@ -3,18 +3,18 @@ import bermuda_cube_lib
 def make_choices(raw_list):
 	face = raw_list[0]
 	button_labels = ["Choose " + face + " face type", "Square", "Diamond"] + ["Triangle >" + t for t in raw_list[1:]]
-	block_names = [face, face + ":" + face + "+1"] + [face + "/" + t for t in raw_list[1:]]
+	block_names = [face, face + ":+1"] + [face + "/" + t for t in raw_list[1:]]
 	return button_labels, block_names
 
-variant = input_buttons("Choone variant",
+variant = input_buttons("Choose variant",
 	"Mercury", "Venus", "Earth", "Mars",
 	"Jupiter", "Saturn", "Uranus", "Neptune", "Customize...")
 if variant == 0:
-	bermuda_cube_lib.make_bermuda_cube("U:U+1", "L", "F", "R", "B", "D/FR")
+	bermuda_cube_lib.make_bermuda_cube("U:+1", "L", "F", "R", "B", "D/FR")
 elif variant == 1:
 	bermuda_cube_lib.make_bermuda_cube("U", "L", "F/R", "R", "B/UL", "D")
 elif variant == 2:
-	bermuda_cube_lib.make_bermuda_cube("U", "L/B", "F/L", "R", "B:B+1", "D")
+	bermuda_cube_lib.make_bermuda_cube("U", "L/B", "F/L", "R", "B:+1", "D")
 elif variant == 3:
 	bermuda_cube_lib.make_bermuda_cube("U/RF", "L", "F", "R/DF", "B", "D/LF")
 elif variant == 4:

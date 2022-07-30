@@ -5,6 +5,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 import core
 from .PuzzleDisplay import PuzzleDisplay
 from .ButtonInputDialog import ButtonInputDialog
+from .PuzzleInspector import PuzzleInspector
 
 class MainWindow(QtWidgets.QWidget):
 
@@ -14,6 +15,7 @@ class MainWindow(QtWidgets.QWidget):
 		self.base_path = base_path
 		self.control_penal = QtWidgets.QWidget()
 		self.display = PuzzleDisplay()
+		self.inspector = PuzzleInspector()
 
 		self.open_button = QtWidgets.QPushButton("Open...")
 		self.reload_button = QtWidgets.QPushButton("Reload")
@@ -47,36 +49,63 @@ class MainWindow(QtWidgets.QWidget):
 		main_layout = QtWidgets.QHBoxLayout()
 		main_layout.addWidget(self.control_penal)
 		main_layout.addWidget(self.display)
+		main_layout.addWidget(self.inspector)
+		self.inspector.hide()
 		self.setLayout(main_layout)
 
-		self.open_button.clicked.connect(self.open_file)
+		self.open_button.clicked.connect(self.open)
 		self.reload_button.clicked.connect(self.reload)
-		self.last_puzzle_path = ''
+		self.play_button.clicked.connect(self.show_display)
+		self.inspect_button.clicked.connect(self.show_inspector)
 
-	@QtCore.Slot()
-	def open_file(self):
-		puzzle_path = QtWidgets.QFileDialog.getOpenFileName(self, "Open", str(self.base_path))[0]
-		if puzzle_path != '':
+		self.display.puzzle_state_changed.connect(self.inspector.update_state)
+
+		self.last_puzzle_path = None
+
+	def load_puzzle(self, puzzle_path):
+		if puzzle_path is not None:
 			self.last_puzzle_path = puzzle_path
-			puzzle_path = pathlib.Path(puzzle_path).resolve()
 			puzzle_dir = str(puzzle_path.parent)
 			sys.path.append(puzzle_dir)
 			puzzle = core.Puzzle(self, puzzle_path, self.base_path.parent / 'lib')
-			self.display.set_puzzle(puzzle)
 			sys.path.remove(puzzle_dir)
+			self.display.set_puzzle(puzzle)
+			self.inspector.set_puzzle(puzzle)
+
+	@QtCore.Slot()
+	def open(self):
+		puzzle_path = QtWidgets.QFileDialog.getOpenFileName(self, "Open", str(self.base_path))[0]
+		puzzle_path = pathlib.Path(puzzle_path).resolve() if puzzle_path != '' else None
+		self.load_puzzle(puzzle_path)
 
 	@QtCore.Slot()
 	def reload(self):
-		if self.last_puzzle_path != '':
-			puzzle_path = pathlib.Path(self.last_puzzle_path).resolve()
-			puzzle_dir = str(puzzle_path.parent)
-			sys.path.append(puzzle_dir)
-			puzzle = core.Puzzle(self, puzzle_path, self.base_path.parent / 'lib')
-			self.display.set_puzzle(puzzle)
-			sys.path.remove(puzzle_dir)
+		self.load_puzzle(last_puzzle_path)
+
+	@QtCore.Slot()
+	def show_display(self):
+		self.display.show()
+		self.inspector.hide()
+
+	@QtCore.Slot()
+	def show_inspector(self):
+		self.display.hide()
+		self.inspector.show()
 
 	def get_input_buttons(self, title, labels):
 		ret_ptr = [0]
 		dialog = ButtonInputDialog(self, title, labels, ret_ptr)
 		dialog.exec()
 		return ret_ptr[0]
+
+	def keyPressEvent(self, event):
+		if event.key() in [QtCore.Qt.Key_Shift, QtCore.Qt.Key_Control, QtCore.Qt.Key_Alt]:
+			self.display.keyPressEvent(event)
+		else:
+			super().keyPressEvent(event)
+
+	def keyReleaseEvent(self, event):
+		if event.key() in [QtCore.Qt.Key_Shift, QtCore.Qt.Key_Control, QtCore.Qt.Key_Alt]:
+			self.display.keyReleaseEvent(event)
+		else:
+			super().keyReleaseEvent(event)

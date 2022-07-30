@@ -23,9 +23,9 @@ class PuzzleModelMixin:
 
 	def get_model(self, path):
 		path = str((self.puzzle_dir / path).resolve())
-		if path in self.models:
-			return self.models[path]
+		if path in self.model_map:
+			return self.model_map[path]
 		else:
 			new_model = Model(path)
-			self.models[path] = new_model
+			self.model_map[path] = new_model
 			return new_model

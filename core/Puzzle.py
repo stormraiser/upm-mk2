@@ -14,7 +14,8 @@ export_names = [
 	'tag_cycle',
 	'group',
 	'block',
-	'merge',
+	'link_block',
+	'link_pos',
 	'color',
 	'op',
 	'texture',
@@ -43,19 +44,23 @@ class Puzzle(
 	current_active_puzzle = None
 
 	def __init__(self, window, puzzle_path, lib_dir):
-		#print(self)
 		self.window = window
-		self.tags = set()
+		self.tag_set = set()
 		self.sym_stack = [TransformSet(self, [Transform()])]
-		self.models = {}
-		self.textures = {}
-		self.blocks = {}
-		self.operations = {}
+		self.model_map = {}
+		self.texture_map = {}
+		self.block_map = {}
+		self.op_map = {}
 		self.selector_map = {}
-		self.block_merge_sets = []
-		self.pos_colocate_sets = []
 		self.clr_tex_map = {}
 		self.puzzle_dir = puzzle_path.parent
+		self.blink_map = {}
+		self.blink_invmap = {}
+		self.plink_map = {}
+		self.plink_invmap = {}
+
+		self.class_mergers = []
+		self.log_strings = []
 
 		modifiers = ['']
 		for s in ['a', 'c', 's', 'r']:
@@ -67,16 +72,14 @@ class Puzzle(
 		self.postprocess()
 		self.reset()
 
+	def log(self, string):
+		self.log_strings.append(string)
+
 	def color(self, name, r, g, b, specular = 0):
 		self.clr_tex_map[name] = (False, r, g, b, specular)
 
 	def load_puzzle(self, puzzle_path, lib_dir):
 		Puzzle.current_active_puzzle = self
-
-		export_dict = {}
-		for name in export_names:
-			export_dict[name] = getattr(self, name)
-		Puzzle.current_extra_globals = export_dict
 
 		def make_loader(fullname, path):
 			return SourceFileLoaderWithExtraGlobals(fullname, path)
@@ -90,7 +93,7 @@ class Puzzle(
 
 		with open(puzzle_path) as code_file:
 			pcode = code_file.read()
-		exec(pcode, export_dict)
+		exec(pcode, Puzzle.extra_globals)
 
 		sys.path_hooks.remove(puzzle_path_hook)
 
@@ -118,8 +121,12 @@ class Puzzle(
 		return Puzzle.current_active_puzzle.block(*args)
 
 	@staticmethod
-	def _merge(*args):
-		return Puzzle.current_active_puzzle.merge(*args)
+	def _link_block(*args):
+		return Puzzle.current_active_puzzle.link_block(*args)
+
+	@staticmethod
+	def _link_pos(*args):
+		Puzzle.current_active_puzzle.link_pos(*args)
 
 	@staticmethod
 	def _color(*args):
@@ -143,7 +150,8 @@ Puzzle.extra_globals = {
 	'tag_cycle': Puzzle._tag_cycle,
 	'group': Puzzle._group,
 	'block': Puzzle._block,
-	'merge': Puzzle._merge,
+	'link_block': Puzzle._link_block,
+	'link_pos': Puzzle._link_pos,
 	'color': Puzzle._color,
 	'op': Puzzle._op,
 	'texture': Puzzle._texture,

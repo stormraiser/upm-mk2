@@ -6,7 +6,7 @@ class PuzzleRuntimeMixin:
 		self.state = list(self.start_state)
 		self.animation_op = -1
 		for block in self.block_list:
-			block.position = block.start_position
+			block.position = block.start_pos
 			block.current_transform = np.eye(4, dtype = np.float32)
 			block.next_transform = np.eye(4, dtype = np.float32)
 			block.highlight = False
@@ -14,12 +14,16 @@ class PuzzleRuntimeMixin:
 
 	def check_op_validity(self):
 		for op in self.op_list:
+			op.valid = True
 			for pos_id in op.forbidden_pos:
 				if self.state[pos_id] >= 0:
 					op.valid = False
 					break
-			else:
-				op.valid = True
+			if op.valid:
+				for pos_id in op.required_pos:
+					if self.state[pos_id] == -1:
+						op.valid = False
+						break
 
 	def update_click_map(self):
 		self.check_op_validity()
@@ -89,7 +93,7 @@ class PuzzleRuntimeMixin:
 	def get_drag_matching_path(self, block_id, drag_point, mod_id, num_segments = 20):
 		pos_id = self.block_list[block_id].position
 		valid_ops = []
-		for op_id, move_id in self.op_by_pos[pos_id]:
+		for op_id, move_id in self.pos_to_op[pos_id]:
 			if self.op_list[op_id].valid and self.op_list[op_id].drag_modifier == mod_id:
 				valid_ops.append((op_id, move_id))
 		output_paths = []

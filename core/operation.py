@@ -29,6 +29,7 @@ class Operation:
 		self.cmd = name
 		self.drag_modifier = None
 		self.forbidden_pos = set()
+		self.required_pos = set()
 
 	def add_move(self, move):
 		for move0 in self.moves:
@@ -48,6 +49,9 @@ class Operation:
 
 	def forbid(self, positions):
 		self.forbidden_pos.update(positions)
+
+	def require(self, positions):
+		self.required_pos.update(positions)
 
 	def set_cmd(self, cmd):
 		self.cmd = cmd
@@ -93,6 +97,12 @@ class OperationHandle:
 		self.puzzle.op_forbid(self.name, positions)
 		return self
 
+	def require(self, *positions):
+		if isinstance(positions[0], list):
+			positions = positions[0]
+		self.puzzle.op_require(self.name, positions)
+		return self
+
 	def click(self, *selectors):
 		self.puzzle.op_click(self.name, selectors)
 		return self
@@ -111,11 +121,11 @@ class PuzzleOperationMixin:
 		return OperationHandle(self, name)
 
 	def get_op(self, name):
-		if name in self.operations:
-			return self.operations[name]
+		if name in self.op_map:
+			return self.op_map[name]
 		else:
 			new_op = Operation(self, name)
-			self.operations[name] = new_op
+			self.op_map[name] = new_op
 			return new_op
 
 	def add_click(self, selector, op_name):
@@ -138,6 +148,11 @@ class PuzzleOperationMixin:
 		arg_lists = self.sym_stack[-1].transform([op_name, positions])
 		for arg_list in arg_lists:
 			self.get_op(arg_list[0]).forbid(arg_list[1])
+
+	def op_require(self, op_name, positions):
+		arg_lists = self.sym_stack[-1].transform([op_name, positions])
+		for arg_list in arg_lists:
+			self.get_op(arg_list[0]).require(arg_list[1])
 
 	def op_click(self, op_name, selectors):
 		arg_lists = self.sym_stack[-1].transform([op_name, selectors])

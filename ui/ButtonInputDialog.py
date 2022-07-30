@@ -21,6 +21,7 @@ class ButtonInputDialog(QtWidgets.QDialog):
 		layout.setVerticalSpacing(5)
 		for i in range(len(labels)):
 			button = QtWidgets.QPushButton(labels[i])
+			button.setFixedWidth(100)
 			r = i // grid_w
 			c = i % grid_w
 			layout.addWidget(button, r, c)

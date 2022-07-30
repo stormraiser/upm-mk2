@@ -34,11 +34,11 @@ def make_bermuda_cube(u_type, l_type, f_type, r_type, b_type, d_type):
 	with sym:
 		block("U").add_parts((mb_f4, "body"), (mf_f4, "U"))
 		block("U").add_selector(ms_f4)
-		block("U:U+1").add_parts(
+		block("U:+1").add_parts(
 			(mb_f4, "body", rotate(-45, 0, 1, 0)),
 			(mf_f4, "U", rotate(-45, 0, 1, 0))
 		)
-		block("U:U+1").add_selector(ms_f4, '', rotate(-45, 0, 1, 0))
+		block("U:+1").add_selector(ms_f4, '', rotate(-45, 0, 1, 0))
 		block("U/RF").add_parts((mb_f3, "body"), (mf_f3, "U"))
 		block("U/RF").add_selector(ms_f3)
 		block("U/R").add_parts(
@@ -46,7 +46,7 @@ def make_bermuda_cube(u_type, l_type, f_type, r_type, b_type, d_type):
 			(mf_f3, "U", rotate(45, 0, 1, 0))
 		)
 		block("U/R").add_selector(ms_f3, '', rotate(45, 0, 1, 0))
-		merge("UR", "RU").add_part(mb_e4, "body")
+		link_block("UR", "RU").add_part(mb_e4, "body")
 		block("UR").add_part(mf_e4, "U")
 		block("UR:U+1").add_parts(
 			(mb_e5, "body"),
@@ -54,22 +54,25 @@ def make_bermuda_cube(u_type, l_type, f_type, r_type, b_type, d_type):
 			(mf_c4, "R", rotate(-120, 1, 1, 1)),
 			(mf_c4, "F", rotate(120, 1, 1, 1))
 		)
-		merge("URF", "RFU").add_part(mb_c4, "body")
+		link_block("URF", "RFU").add_part(mb_c4, "body")
 		block("URF").add_part(mf_c4, "U")
 		block("UBR:U+1").add_parts(
 			(mb_c3, "body"),
 			(mf_c3, "U"),
 			(mf_e4, "R", rotate(180, 1, 1, 0))
 		)
+		link_pos("URF", "RFU")
+		link_pos("UR", "RU")
+		link_pos("URF:U+1", "RFU:U+1", "FUR:U+1")
+		link_pos("UR:U+1", "RU:U+1")
 
-		forbid_list = ["R/UB", "R/B", "R/D", "R/F", "R/FU", "R:R+1"]
+		forbid_list = ["R/UB", "R/B", "R/D", "R/F", "R/FU", "R:+1"]
 		op("U").add_moves(rotate(-45, 0, 1, 0),
-			("U", "U:U+1"), ["U/R", "U/RF", "U/F"],
-			["URF", "URF:U+1", "UFL"], ["RFU", "RFU:U+1", "FLU"], ["FUR", "FUR:U+1", "LUF"],
-			["UR", "UR:U+1", "UF"], ["RU", "RU:U+1", "FU"]
-		).forbid(forbid_list).click("U", "U:U+1", "U/R", "U/RF").drag()
+			("U", "U:+1"), ["U/R", "U/RF", "U/F"],
+			["URF", "URF:U+1", "UFL"], ["UR", "UR:U+1", "UF"],
+		).forbid(forbid_list).click("U", "U:+1", "U/R", "U/RF").drag()
 		op("U'").add_moves(op("U").inverse())
-		op("U'").forbid(forbid_list).click("U&r", "U:U+1&r", "U/R&r", "U/RF&r").drag()
+		op("U'").forbid(forbid_list).click("U&r", "U:+1&r", "U/R&r", "U/RF&r").drag()
 
 	for face_block in face_blocks:
 		if not block(face_block).exists():
@@ -77,7 +80,7 @@ def make_bermuda_cube(u_type, l_type, f_type, r_type, b_type, d_type):
 
 	block_incompat_lists = [
 		["U", ["URF:U+1", "UR:U+1"]],
-		["U:U+1", ["URF", "UR"]],
+		["U:+1", ["URF", "UR"]],
 		["U/RF", ["URF", "UFL:U+1", "ULB:U+1", "UR", "UF", "UF:U+1", "UL:U+1", "UB:U+1"]],
 		["U/R", ["UFL", "ULB", "UBR:U+1", "UR:U+1", "UF", "UL", "UB", "UB:U+1"]]
 	]

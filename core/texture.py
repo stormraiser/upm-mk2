@@ -20,9 +20,9 @@ class PuzzleTextureMixin:
 
 	def load_texture(self, path):
 		path = str((self.puzzle_dir / path).resolve())
-		if not path in self.textures:
+		if not path in self.texture_map:
 			new_texture = Texture(path)
-			self.textures[path] = new_texture
+			self.texture_map[path] = new_texture
 		return path
 
 	def texture(self, name, path, ux, uy, uz, vx, vy, vz, uoffset, voffset):

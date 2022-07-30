@@ -19,10 +19,10 @@ ms_corner_0 = "corner_selector_0.stl"
 ms_corner_1 = "corner_selector_1.stl"
 
 with group(x, f):
-	merge("U/RF", "U/FL").add_parts((m_center, "body"), (mf_center, "U"))
+	link_block("U/RF", "U/FL").add_parts((m_center, "body"), (mf_center, "U"))
 	block("U/RF").add_selectors(ms_center_0, ms_center_1)
 
-	merge("URF", "RFU").add_part(m_corner, "body")
+	link_block("URF", "RFU").add_part(m_corner, "body")
 	URF = block("URF").add_part(mf_corner, "U")
 	URF.add_selectors(ms_corner_0, ms_corner_1)
 

@@ -196,18 +196,9 @@ class TransformSequence(TransformSet):
 				geom_tr.append(tr)
 			else:
 				tag_perm = tag_perm @ tr
-		all_pos = set()
-		for pos in positions:
-			for t in self.puzzle.pos_colocate_sets:
-				if pos in t[0]:
-					all_pos.update(t[0])
-					break
-			else:
-				all_pos.add(pos)
-		all_pos = list(all_pos)
-		target = tag_perm.transform(all_pos)
+		target = tag_perm.transform(positions)
 		geom_tr = TransformSequence(self.puzzle, geom_tr)
-		pos_perm = dict(zip(all_pos, target))
+		pos_perm = dict(zip(positions, target))
 		return Move(geom_tr, pos_perm)
 
 	def __eq__(self, other):
@@ -226,7 +217,7 @@ class PuzzleTransformMixin:
 
 	def rotate(self, angle_deg, x, y, z, x0 = 0, y0 = 0, z0 = 0):
 		return TransformSequence(self, [Rotation(
-			(angle_deg - (angle_deg + 180) // 360 * 360) / 180 * math.pi,
+			angle_deg / 180 * math.pi,
 			np.array([x, y, z, 0], dtype = np.float32),
 			np.array([x0, y0, z0, 1], dtype = np.float32)
 		)])
@@ -258,9 +249,9 @@ class PuzzleTransformMixin:
 		return ret
 
 	def add_tag(self, new_tag):
-		for tag in self.tags:
+		for tag in self.tag_set:
 			if tag == new_tag:
 				return
 			if tag.startswith(new_tag) or new_tag.startswith(tag):
 				raise ValueError("A tag cannot contain another tag as prefix")
-		self.tags.add(new_tag)
+		self.tag_set.add(new_tag)

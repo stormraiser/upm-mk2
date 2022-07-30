@@ -1,4 +1,4 @@
-from cube_3_func import *
+from cube_3_lib import *
 make_cube_blank()
 
 x = rotate(-90, 1, 0, 0) @ tag_cycle("FUBD")

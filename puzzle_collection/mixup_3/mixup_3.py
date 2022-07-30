@@ -17,14 +17,11 @@ mf_e = "edge_sticker.stl"
 mf_c = "corner_sticker.stl"
 
 with group(x, y):
-	merge("U/R", "U/F").add_parts((mb_f, "body"), (mf_f, "U"))
-	merge("UR", "UR:+1", "RU").add_part(mb_e, "body")
+	link_block("U/R", "U/F").add_parts((mb_f, "body"), (mf_f, "U"))
+	link_block("UR", "UR:+1", "RU").add_part(mb_e, "body")
 	block("UR").add_part(mf_e, "U")
-	merge("URF", "RFU").add_part(mb_c, "body")
+	link_block("URF", "RFU").add_part(mb_c, "body")
 	block("URF").add_part(mf_c, "U")
 	op("U").add_moves(y("U/R", "UR", "URF")).drag()
 	op("U'").add_moves(op("U").inverse()).drag()
-	op("mU").add_moves(rotate(-45, 0, 1, 0),
-		["R/U", "RF:+1", "F/U"], ["R/B", "FR", "F/R"],
-		["R/D", "FR:+1", "F/D"], ["R/F", "RF", "F/L"]
-	).drag()
+	op("mU").add_moves(rotate(-45, 0, 1, 0), ["R/U", "RF:+1", "F/U"]).drag()

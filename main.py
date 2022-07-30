@@ -11,8 +11,11 @@ if __name__ == "__main__":
 	app = QtWidgets.QApplication([])
 
 	main_window = ui.MainWindow(base_path)
-	#main_window = ui.PuzzleDisplay()
 	main_window.resize(800, 600)
 	main_window.show()
+
+	if len(sys.argv) > 1:
+		start_puzzle_path = pathlib.Path(sys.argv[1]).resolve()
+		main_window.load_puzzle(start_puzzle_path)
 
 	sys.exit(app.exec())

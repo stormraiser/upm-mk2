@@ -11,6 +11,8 @@ from PIL import Image
 
 class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 
+	puzzle_state_changed = QtCore.Signal()
+
 	def __init__(self, parent = None, f = QtCore.Qt.WindowFlags()):
 		super().__init__(parent, f)
 
@@ -79,6 +81,7 @@ class PuzzleDisplay(QtOpenGLWidgets.QOpenGLWidget):
 			if current_time - self.animation_start >= self.animation_time:
 				self.animating = False
 				self.puzzle.finish_op()
+				self.puzzle_state_changed.emit()
 				self.update_active_selector(self.last_mouse_x, self.last_mouse_y)
 			else:
 				self.puzzle.animate(t = (current_time - self.animation_start) / self.animation_time)
